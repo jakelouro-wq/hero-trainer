@@ -151,64 +151,76 @@ const Workout = () => {
         </div>
 
         {/* Exercises */}
-        <h2 className="text-lg font-semibold text-foreground mb-4">
-          Exercises ({workout.exercises?.length || 0})
-        </h2>
-        
-        <div className="space-y-3">
-          {workout.exercises?.map((exercise, index) => {
-            const isCompleted = completedExercises.has(exercise.id);
-            return (
-              <div
-                key={exercise.id}
-                className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer ${
-                  isCompleted
-                    ? "bg-primary/5 border-primary/30"
-                    : "bg-secondary/50 border-border hover:border-primary/30"
-                }`}
-                onClick={() => toggleExercise(exercise.id)}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="flex items-start gap-4">
-                  <button className="mt-1 transition-transform hover:scale-110">
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-6 h-6 text-primary" />
-                    ) : (
-                      <Circle className="w-6 h-6 text-muted-foreground" />
-                    )}
-                  </button>
-                  
-                  <div className="flex-1">
-                    <h3
-                      className={`font-semibold ${
-                        isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+        <div className="border-t border-border pt-4">
+          <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-4">
+            Strength / Power
+          </p>
+          
+          <div className="space-y-1">
+            {workout.exercises?.map((exercise, index) => {
+              const isCompleted = completedExercises.has(exercise.id);
+              // Generate letter labels like A, B1, B2, C1, C2, etc.
+              const letterIndex = Math.floor(index / 2);
+              const letter = String.fromCharCode(65 + letterIndex);
+              const subIndex = index % 2 === 0 ? 1 : 2;
+              const label = index < 2 ? letter : `${letter}${subIndex}`;
+              
+              return (
+                <div
+                  key={exercise.id}
+                  className="py-4 border-b border-border/50 last:border-b-0 cursor-pointer transition-opacity duration-200"
+                  onClick={() => toggleExercise(exercise.id)}
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Letter Label Circle */}
+                    <div 
+                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isCompleted 
+                          ? "border-primary bg-primary/20" 
+                          : "border-muted-foreground/50"
                       }`}
                     >
-                      {exercise.name}
-                    </h3>
+                      <span className={`text-sm font-semibold ${isCompleted ? "text-primary" : "text-muted-foreground"}`}>
+                        {label}
+                      </span>
+                    </div>
                     
-                    <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="text-muted-foreground">
-                        <span className="text-foreground font-medium">{exercise.sets}</span> sets
-                      </span>
-                      <span className="text-muted-foreground">
-                        <span className="text-foreground font-medium">{exercise.reps}</span> reps
-                      </span>
-                      {exercise.weight && (
-                        <span className="text-primary font-medium">{exercise.weight}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3
+                        className={`font-bold text-base ${
+                          isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+                        }`}
+                      >
+                        {exercise.name}
+                      </h3>
+                      
+                      {/* Sets x Reps in primary color */}
+                      <p className="text-primary font-medium text-sm mt-1">
+                        {exercise.sets} x {exercise.reps}
+                        {exercise.weight && ` @ ${exercise.weight}`}
+                      </p>
+                      
+                      {exercise.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {exercise.notes}
+                        </p>
                       )}
                     </div>
                     
-                    {exercise.notes && (
-                      <p className="text-xs text-muted-foreground mt-2 italic">
-                        {exercise.notes}
-                      </p>
-                    )}
+                    {/* Completion indicator */}
+                    <div className="flex-shrink-0">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-6 h-6 text-primary" />
+                      ) : (
+                        <Circle className="w-6 h-6 text-muted-foreground/50" />
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Complete Button */}
