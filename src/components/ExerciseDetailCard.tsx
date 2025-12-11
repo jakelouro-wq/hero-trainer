@@ -63,6 +63,14 @@ const ExerciseDetailCard = ({
     });
   };
 
+  const updateSetWeight = (index: number, value: string) => {
+    setSetsData((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], weight: value };
+      return updated;
+    });
+  };
+
   const addSet = () => {
     setSetsData((prev) => [...prev, { reps: reps, weight: weight || "", completed: false }]);
   };
@@ -142,10 +150,13 @@ const ExerciseDetailCard = ({
           )}
 
           {/* Sets Header */}
-          <div className="flex items-center mb-2">
-            <span className="text-sm font-semibold text-muted-foreground w-12">Sets</span>
+          <div className="flex items-center mb-2 gap-2">
+            <span className="text-sm font-semibold text-muted-foreground w-8">Sets</span>
             <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
               Reps
+            </span>
+            <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
+              Lb
             </span>
             <button
               onClick={(e) => {
@@ -175,6 +186,15 @@ const ExerciseDetailCard = ({
                   onChange={(e) => updateSetReps(index, e.target.value)}
                   className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
                   onClick={(e) => e.stopPropagation()}
+                  placeholder="Reps"
+                />
+                <Input
+                  type="text"
+                  value={set.weight}
+                  onChange={(e) => updateSetWeight(index, e.target.value)}
+                  className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Lb"
                 />
                 <button
                   onClick={(e) => {
