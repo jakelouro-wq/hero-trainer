@@ -5,8 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Play, Pause } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import ExerciseDetailCard from "@/components/ExerciseDetailCard";
+import ExerciseDetailCard, { CompletedSetData } from "@/components/ExerciseDetailCard";
 import { toast } from "sonner";
+import { Dumbbell } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -33,6 +34,7 @@ const Workout = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
+  const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   
   // Timer state
@@ -142,7 +144,7 @@ const Workout = () => {
     enabled: !!user && !!id,
   });
 
-  const handleExerciseComplete = (exerciseId: string, isComplete: boolean) => {
+  const handleExerciseComplete = (exerciseId: string, isComplete: boolean, completedSets: CompletedSetData[]) => {
     setCompletedExercises((prev) => {
       const next = new Set(prev);
       if (isComplete) {
@@ -152,7 +154,20 @@ const Workout = () => {
       }
       return next;
     });
+    setExerciseWeights((prev) => ({
+      ...prev,
+      [exerciseId]: completedSets,
+    }));
   };
+
+  // Calculate total weight lifted from all completed sets
+  const totalWeightLifted = Object.values(exerciseWeights).reduce((total, sets) => {
+    return total + sets.reduce((setTotal, set) => {
+      const weight = parseFloat(set.weight) || 0;
+      const reps = parseInt(set.reps) || 0;
+      return setTotal + (weight * reps);
+    }, 0);
+  }, 0);
 
   const progress = workout?.exercises
     ? Math.round((completedExercises.size / workout.exercises.length) * 100)
@@ -239,6 +254,16 @@ const Workout = () => {
                 </div>
               )}
             </div>
+
+            {/* Total Weight Lifted */}
+            {hasStarted && totalWeightLifted > 0 && (
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-4 h-4 text-primary" />
+                <span className="text-foreground font-semibold">
+                  {totalWeightLifted.toLocaleString()} lbs
+                </span>
+              </div>
+            )}
             
             {/* Progress */}
             <div className="flex items-center gap-2">
@@ -297,7 +322,7 @@ const Workout = () => {
                       expandedExerciseId === exercise.id ? null : exercise.id
                     )
                   }
-                  onComplete={(isComplete) => handleExerciseComplete(exercise.id, isComplete)}
+                  onComplete={(isComplete, completedSets) => handleExerciseComplete(exercise.id, isComplete, completedSets)}
                 />
               );
             })}
