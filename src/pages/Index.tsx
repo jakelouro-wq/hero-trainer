@@ -1,9 +1,9 @@
 import Header from "@/components/Header";
-import WorkoutCard from "@/components/WorkoutCard";
 import StatsCard from "@/components/StatsCard";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import ProgressRing from "@/components/ProgressRing";
-import { Trophy, Flame, Calendar, TrendingUp, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNextWorkout, useUpcomingWorkouts } from "@/hooks/useNextWorkout";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
@@ -59,21 +59,25 @@ const Index = () => {
                 <div className="animate-pulse text-muted-foreground">Loading workout...</div>
               </div>
             ) : nextWorkout ? (
-              <WorkoutCard
-                title={nextWorkout.workout_template.title}
-                subtitle={`Scheduled: ${formatWorkoutDate(nextWorkout.scheduled_date)}`}
-                duration={nextWorkout.workout_template.duration || "45 min"}
-                calories={nextWorkout.workout_template.calories || "350 cal"}
-                focus={nextWorkout.workout_template.focus || "Full Body"}
-                progress={0}
-                exercises={nextWorkout.exercises.map((e) => ({
-                  name: e.name,
-                  sets: e.sets,
-                  reps: e.reps,
-                  weight: e.weight || undefined,
-                  notes: e.notes || undefined,
-                }))}
-              />
+              <div className="card-gradient rounded-2xl border border-border p-6 opacity-0 animate-scale-in" style={{ animationDelay: "200ms" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-primary text-sm font-medium uppercase tracking-wider mb-1">
+                      {formatWorkoutDate(nextWorkout.scheduled_date)}
+                    </p>
+                    <h3 className="text-3xl font-bold text-foreground">{nextWorkout.workout_template.title}</h3>
+                    <div className="flex items-center gap-4 mt-3 text-muted-foreground">
+                      <span className="text-sm">{nextWorkout.workout_template.duration || "45 min"}</span>
+                      <span className="text-sm">•</span>
+                      <span className="text-sm">{nextWorkout.workout_template.focus || "Full Body"}</span>
+                    </div>
+                  </div>
+                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold glow transition-all duration-300 hover:scale-105">
+                    Start Workout
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="card-gradient rounded-2xl border border-border p-8 text-center">
                 <p className="text-muted-foreground mb-2">No workouts scheduled</p>
