@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_programs: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          program_id: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          program_id: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          program_id?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_programs_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_logs: {
         Row: {
           completed_at: string
@@ -136,6 +171,60 @@ export type Database = {
         }
         Relationships: []
       }
+      programs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          days_per_week: number
+          description: string | null
+          duration_weeks: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          days_per_week?: number
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          days_per_week?: number
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_workouts: {
         Row: {
           completed: boolean | null
@@ -178,41 +267,64 @@ export type Database = {
         Row: {
           calories: string | null
           created_at: string | null
+          day_number: number | null
           duration: string | null
           focus: string | null
           id: string
+          program_id: string | null
           subtitle: string | null
           title: string
+          week_number: number | null
         }
         Insert: {
           calories?: string | null
           created_at?: string | null
+          day_number?: number | null
           duration?: string | null
           focus?: string | null
           id?: string
+          program_id?: string | null
           subtitle?: string | null
           title: string
+          week_number?: number | null
         }
         Update: {
           calories?: string | null
           created_at?: string | null
+          day_number?: number | null
           duration?: string | null
           focus?: string | null
           id?: string
+          program_id?: string | null
           subtitle?: string | null
           title?: string
+          week_number?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workout_templates_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "coach" | "client"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -339,6 +451,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "coach", "client"],
+    },
   },
 } as const
