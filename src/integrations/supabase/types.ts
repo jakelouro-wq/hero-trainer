@@ -14,7 +14,142 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      exercises: {
+        Row: {
+          id: string
+          name: string
+          notes: string | null
+          order_index: number
+          reps: string
+          sets: number
+          weight: string | null
+          workout_template_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          notes?: string | null
+          order_index?: number
+          reps: string
+          sets?: number
+          weight?: string | null
+          workout_template_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          notes?: string | null
+          order_index?: number
+          reps?: string
+          sets?: number
+          weight?: string | null
+          workout_template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercises_workout_template_id_fkey"
+            columns: ["workout_template_id"]
+            isOneToOne: false
+            referencedRelation: "workout_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          fitness_level: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_workouts: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          scheduled_date: string
+          user_id: string
+          workout_template_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          scheduled_date: string
+          user_id: string
+          workout_template_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          scheduled_date?: string
+          user_id?: string
+          workout_template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_workouts_workout_template_id_fkey"
+            columns: ["workout_template_id"]
+            isOneToOne: false
+            referencedRelation: "workout_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_templates: {
+        Row: {
+          calories: string | null
+          created_at: string | null
+          duration: string | null
+          focus: string | null
+          id: string
+          subtitle: string | null
+          title: string
+        }
+        Insert: {
+          calories?: string | null
+          created_at?: string | null
+          duration?: string | null
+          focus?: string | null
+          id?: string
+          subtitle?: string | null
+          title: string
+        }
+        Update: {
+          calories?: string | null
+          created_at?: string | null
+          duration?: string | null
+          focus?: string | null
+          id?: string
+          subtitle?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
