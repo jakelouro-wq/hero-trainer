@@ -233,6 +233,7 @@ export type Database = {
           completed: boolean | null
           completed_at: string | null
           created_at: string | null
+          duration_seconds: number | null
           id: string
           scheduled_date: string
           user_id: string
@@ -242,6 +243,7 @@ export type Database = {
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string | null
+          duration_seconds?: number | null
           id?: string
           scheduled_date: string
           user_id: string
@@ -251,6 +253,7 @@ export type Database = {
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string | null
+          duration_seconds?: number | null
           id?: string
           scheduled_date?: string
           user_id?: string
