@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,20 @@ const ExerciseGroupCard = ({
 
   const isSuperset = exercises.length > 1;
   
+  // Report completed sets to parent via useEffect to avoid setState during render
+  useEffect(() => {
+    exercises.forEach((ex) => {
+      const state = exerciseStates[ex.id];
+      if (state) {
+        const allCompleted = state.setsData.every((set) => set.completed);
+        const completedSets = state.setsData
+          .filter((s) => s.completed)
+          .map((s) => ({ reps: s.reps, weight: s.weight }));
+        onComplete(ex.id, allCompleted, completedSets);
+      }
+    });
+  }, [exerciseStates]);
+  
   const allGroupCompleted = exercises.every((ex) =>
     exerciseStates[ex.id]?.setsData.every((set) => set.completed)
   );
@@ -82,9 +96,6 @@ const ExerciseGroupCard = ({
       const exerciseState = prev[exerciseId];
       const updated = [...exerciseState.setsData];
       updated[index] = { ...updated[index], completed: !updated[index].completed };
-      const allCompleted = updated.every((set) => set.completed);
-      const completedSets = updated.filter(s => s.completed).map(s => ({ reps: s.reps, weight: s.weight }));
-      onComplete(exerciseId, allCompleted, completedSets);
       return {
         ...prev,
         [exerciseId]: { ...exerciseState, setsData: updated },
@@ -147,8 +158,6 @@ const ExerciseGroupCard = ({
       const allComplete = exerciseState.setsData.every((s) => s.completed);
       const newCompletedState = !allComplete;
       const updated = exerciseState.setsData.map((s) => ({ ...s, completed: newCompletedState }));
-      const completedSets = newCompletedState ? updated.map(s => ({ reps: s.reps, weight: s.weight })) : [];
-      onComplete(exerciseId, newCompletedState, completedSets);
       return {
         ...prev,
         [exerciseId]: { ...exerciseState, setsData: updated },
