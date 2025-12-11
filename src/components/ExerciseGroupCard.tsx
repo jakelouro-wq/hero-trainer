@@ -161,7 +161,7 @@ const ExerciseGroupCard = ({
     return match ? match[1] : null;
   };
 
-  const renderExerciseDetails = (exercise: ExerciseData) => {
+  const renderExerciseDetails = (exercise: ExerciseData, isLastInGroup: boolean) => {
     const state = exerciseStates[exercise.id];
     const videoId = exercise.videoUrl ? getYouTubeId(exercise.videoUrl) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
@@ -336,8 +336,8 @@ const ExerciseGroupCard = ({
           </button>
         </div>
 
-        {/* Rest Timer Button */}
-        {exercise.restSeconds && exercise.restSeconds > 0 && (
+        {/* Rest Timer Button - Only show after last exercise in group */}
+        {isLastInGroup && exercise.restSeconds && exercise.restSeconds > 0 && (
           <div className="mt-4">
             <Button
               onClick={(e) => {
@@ -455,7 +455,7 @@ const ExerciseGroupCard = ({
             </div>
           )}
 
-          {exercises.map((exercise) => renderExerciseDetails(exercise))}
+          {exercises.map((exercise, index) => renderExerciseDetails(exercise, index === exercises.length - 1))}
         </div>
       )}
 
