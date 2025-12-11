@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Flame, Target } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Clock, Play, Pause } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import ExerciseDetailCard from "@/components/ExerciseDetailCard";
+import { toast } from "sonner";
 
 interface Exercise {
   id: string;
@@ -30,8 +31,49 @@ const Workout = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  
+  // Timer state
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning) {
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isTimerRunning]);
+
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const startWorkout = () => {
+    setHasStarted(true);
+    setIsTimerRunning(true);
+  };
+
+  const toggleTimer = () => {
+    setIsTimerRunning(!isTimerRunning);
+  };
 
   const { data: workout, isLoading } = useQuery({
     queryKey: ["workout", id],
@@ -161,24 +203,44 @@ const Workout = () => {
         </div>
       </header>
 
-      {/* Workout Info */}
+      {/* Workout Info - Top Bar */}
       <div className="container mx-auto px-4 py-6">
         <div className="card-gradient rounded-xl border border-border p-4 mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">{workout.workout_template?.duration || "45 min"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Flame className="w-4 h-4 text-primary" />
-                <span className="text-sm">{workout.workout_template?.calories || "350 cal"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Target className="w-4 h-4 text-primary" />
-                <span className="text-sm">{workout.workout_template?.focus}</span>
-              </div>
+            <div className="flex items-center gap-4">
+              {/* Timer */}
+              {!hasStarted ? (
+                <Button
+                  onClick={startWorkout}
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Start
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleTimer}
+                    className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+                  >
+                    {isTimerRunning ? (
+                      <Pause className="w-4 h-4 text-foreground" />
+                    ) : (
+                      <Play className="w-4 h-4 text-foreground" />
+                    )}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span className="text-foreground font-mono font-semibold min-w-[60px]">
+                      {formatTime(elapsedSeconds)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
+            
+            {/* Progress */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Progress</span>
               <span className="text-primary font-bold">{progress}%</span>
@@ -247,6 +309,29 @@ const Workout = () => {
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
             disabled={progress < 100}
+            onClick={async () => {
+              if (progress === 100 && id) {
+                // Stop timer and save duration
+                setIsTimerRunning(false);
+                
+                const { error } = await supabase
+                  .from("user_workouts")
+                  .update({
+                    completed: true,
+                    completed_at: new Date().toISOString(),
+                    duration_seconds: elapsedSeconds,
+                  })
+                  .eq("id", id);
+
+                if (error) {
+                  toast.error("Failed to save workout");
+                } else {
+                  toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
+                  queryClient.invalidateQueries({ queryKey: ["next-workout"] });
+                  navigate("/");
+                }
+              }
+            }}
           >
             {progress < 100 ? `Complete All Exercises (${progress}%)` : "Finish Workout"}
           </Button>
