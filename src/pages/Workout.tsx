@@ -14,7 +14,15 @@ interface Exercise {
   reps: string;
   weight: string | null;
   notes: string | null;
+  video_url: string | null;
   order_index: number;
+}
+
+interface ExerciseLog {
+  exercise_id: string;
+  sets: number;
+  reps: string;
+  weight: string | null;
 }
 
 const Workout = () => {
@@ -47,10 +55,45 @@ const Workout = () => {
 
       if (exercisesError) throw exercisesError;
 
+      // Fetch last workout logs for each exercise
+      const exerciseIds = (exercises || []).map((e: Exercise) => e.id);
+      const { data: lastLogs } = await supabase
+        .from("exercise_logs")
+        .select("exercise_id, set_number, reps, weight, completed_at")
+        .eq("user_id", user.id)
+        .in("exercise_id", exerciseIds)
+        .order("completed_at", { ascending: false });
+
+      // Group logs by exercise and get the most recent session
+      const lastWorkoutByExercise: Record<string, ExerciseLog> = {};
+      if (lastLogs) {
+        const exerciseLogGroups: Record<string, typeof lastLogs> = {};
+        lastLogs.forEach((log) => {
+          if (!exerciseLogGroups[log.exercise_id]) {
+            exerciseLogGroups[log.exercise_id] = [];
+          }
+          exerciseLogGroups[log.exercise_id].push(log);
+        });
+
+        Object.entries(exerciseLogGroups).forEach(([exerciseId, logs]) => {
+          if (logs.length > 0) {
+            const latestDate = logs[0].completed_at;
+            const sessionLogs = logs.filter((l) => l.completed_at === latestDate);
+            lastWorkoutByExercise[exerciseId] = {
+              exercise_id: exerciseId,
+              sets: sessionLogs.length,
+              reps: sessionLogs[0]?.reps || "",
+              weight: sessionLogs[0]?.weight || null,
+            };
+          }
+        });
+      }
+
       return {
         ...userWorkout,
         workout_template: userWorkout.workout_templates,
         exercises: exercises as Exercise[],
+        lastWorkoutByExercise,
       };
     },
     enabled: !!user && !!id,
@@ -166,6 +209,8 @@ const Workout = () => {
               const subIndex = index % 2 === 0 ? 1 : 2;
               const label = index < 2 ? letter : `${letter}${subIndex}`;
               
+              const lastWorkout = workout.lastWorkoutByExercise?.[exercise.id] || null;
+              
               return (
                 <ExerciseDetailCard
                   key={exercise.id}
@@ -175,8 +220,14 @@ const Workout = () => {
                   reps={exercise.reps}
                   weight={exercise.weight}
                   notes={exercise.notes}
+                  videoUrl={exercise.video_url}
                   label={label}
                   isExpanded={expandedExerciseId === exercise.id}
+                  lastWorkout={lastWorkout ? {
+                    sets: lastWorkout.sets,
+                    reps: lastWorkout.reps,
+                    weight: lastWorkout.weight
+                  } : null}
                   onToggleExpand={() => 
                     setExpandedExerciseId(
                       expandedExerciseId === exercise.id ? null : exercise.id

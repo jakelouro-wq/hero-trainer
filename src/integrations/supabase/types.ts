@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      exercise_logs: {
+        Row: {
+          completed_at: string
+          created_at: string
+          exercise_id: string
+          id: string
+          reps: string
+          set_number: number
+          user_id: string
+          user_workout_id: string
+          weight: string | null
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          exercise_id: string
+          id?: string
+          reps: string
+          set_number: number
+          user_id: string
+          user_workout_id: string
+          weight?: string | null
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          reps?: string
+          set_number?: number
+          user_id?: string
+          user_workout_id?: string
+          weight?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_logs_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_logs_user_workout_id_fkey"
+            columns: ["user_workout_id"]
+            isOneToOne: false
+            referencedRelation: "user_workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercises: {
         Row: {
           id: string
@@ -22,6 +73,7 @@ export type Database = {
           order_index: number
           reps: string
           sets: number
+          video_url: string | null
           weight: string | null
           workout_template_id: string
         }
@@ -32,6 +84,7 @@ export type Database = {
           order_index?: number
           reps: string
           sets?: number
+          video_url?: string | null
           weight?: string | null
           workout_template_id: string
         }
@@ -42,6 +95,7 @@ export type Database = {
           order_index?: number
           reps?: string
           sets?: number
+          video_url?: string | null
           weight?: string | null
           workout_template_id?: string
         }
