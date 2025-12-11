@@ -3,9 +3,10 @@ import StatsCard from "@/components/StatsCard";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import ProgressRing from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
-import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight } from "lucide-react";
+import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight, Dumbbell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNextWorkout, useUpcomingWorkouts } from "@/hooks/useNextWorkout";
+import { useUserStats } from "@/hooks/useUserStats";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
@@ -13,6 +14,7 @@ const Index = () => {
   const { user } = useAuth();
   const { data: nextWorkout, isLoading: workoutLoading } = useNextWorkout();
   const { data: upcomingWorkouts } = useUpcomingWorkouts(3);
+  const { data: stats } = useUserStats();
   const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Athlete";
@@ -100,35 +102,41 @@ const Index = () => {
               Your Progress
             </h2>
             
-            {/* Progress Rings */}
+            {/* Program Progress */}
             <div className="card-gradient rounded-xl p-6 border border-border opacity-0 animate-fade-in" style={{ animationDelay: "400ms" }}>
               <div className="flex justify-around">
-                <ProgressRing progress={75} label="Weekly Goal" value="75%" />
-                <ProgressRing progress={92} label="Consistency" value="92%" />
+                <ProgressRing 
+                  progress={stats?.programProgress || 0} 
+                  label={stats?.programName || "Program"} 
+                  value={`${stats?.programProgress || 0}%`} 
+                />
               </div>
+              {stats?.programName && (
+                <p className="text-center text-xs text-muted-foreground mt-2">Program Completion</p>
+              )}
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
               <StatsCard
-                icon={Trophy}
-                label="Total Workouts"
-                value="0"
-                subtext="Get started!"
+                icon={Dumbbell}
+                label="Weight Lifted"
+                value={stats?.totalWeightLifted ? stats.totalWeightLifted.toLocaleString() : "0"}
+                subtext="lbs this month"
                 delay={500}
               />
               <StatsCard
-                icon={Flame}
-                label="Current Streak"
-                value="0"
-                subtext="Days"
+                icon={Calendar}
+                label="Workouts"
+                value={stats?.workoutsThisMonth?.toString() || "0"}
+                subtext="This month"
                 delay={600}
               />
               <StatsCard
-                icon={Calendar}
-                label="This Month"
-                value="0"
-                subtext="Sessions"
+                icon={Trophy}
+                label="Program"
+                value={`${stats?.programProgress || 0}%`}
+                subtext="Complete"
                 delay={700}
               />
               <StatsCard
