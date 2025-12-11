@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Circle, CheckCircle2, Minus, Plus } from "lucide-react";
+import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface SetData {
   reps: string;
   weight: string;
   completed: boolean;
+}
+
+interface LastWorkoutData {
+  sets: number;
+  reps: string;
+  weight: string | null;
 }
 
 interface ExerciseDetailCardProps {
@@ -15,8 +21,10 @@ interface ExerciseDetailCardProps {
   reps: string;
   weight: string | null;
   notes: string | null;
+  videoUrl: string | null;
   label: string;
   isExpanded: boolean;
+  lastWorkout: LastWorkoutData | null;
   onToggleExpand: () => void;
   onComplete: (allSetsCompleted: boolean) => void;
 }
@@ -28,8 +36,10 @@ const ExerciseDetailCard = ({
   reps,
   weight,
   notes,
+  videoUrl,
   label,
   isExpanded,
+  lastWorkout,
   onToggleExpand,
   onComplete,
 }: ExerciseDetailCardProps) => {
@@ -43,7 +53,6 @@ const ExerciseDetailCard = ({
   const [exerciseNote, setExerciseNote] = useState("");
 
   const allSetsCompleted = setsData.every((set) => set.completed);
-  const completedSetsCount = setsData.filter((set) => set.completed).length;
 
   const toggleSetComplete = (index: number) => {
     setSetsData((prev) => {
@@ -86,6 +95,15 @@ const ExerciseDetailCard = ({
     setSetsData((prev) => prev.map((s) => ({ ...s, completed: !allComplete })));
     onComplete(!allComplete);
   };
+
+  // Extract YouTube video ID from URL
+  const getYouTubeId = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    return match ? match[1] : null;
+  };
+
+  const videoId = videoUrl ? getYouTubeId(videoUrl) : null;
+  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
 
   return (
     <div className="border-b border-border/50 last:border-b-0">
@@ -144,9 +162,57 @@ const ExerciseDetailCard = ({
           {/* Progress bar */}
           <div className="h-1 bg-primary rounded-full mb-4" />
 
-          {/* Notes */}
+          {/* Video Thumbnail + Last Workout Section */}
+          <div className="flex gap-3 mb-4">
+            {/* Video Thumbnail */}
+            {thumbnailUrl ? (
+              <a
+                href={videoUrl || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-24 h-16 rounded-lg overflow-hidden bg-secondary flex-shrink-0 group"
+              >
+                <img
+                  src={thumbnailUrl}
+                  alt={`${name} video`}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/60 transition-colors">
+                  <Play className="w-8 h-8 text-white fill-white" />
+                </div>
+              </a>
+            ) : (
+              <div className="w-24 h-16 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                <Play className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Last Workout Info */}
+            <div
+              className="flex-1 bg-secondary/50 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/70 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Last</p>
+                {lastWorkout ? (
+                  <p className="text-primary font-medium text-sm">
+                    {lastWorkout.sets} x {lastWorkout.reps}
+                    {lastWorkout.weight && ` @ ${lastWorkout.weight}`}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No previous data</p>
+                )}
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </div>
+
+          {/* Coach Notes */}
           {notes && (
-            <p className="text-sm text-muted-foreground mb-4">{notes}</p>
+            <div className="mb-4">
+              <p className="text-sm text-foreground">{notes}</p>
+            </div>
           )}
 
           {/* Sets Header */}
