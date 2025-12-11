@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Play, Pause } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import ExerciseDetailCard, { CompletedSetData } from "@/components/ExerciseDetailCard";
+import { ArrowLeft, Clock, Play, Pause, Dumbbell } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
 import { toast } from "sonner";
-import { Dumbbell } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -35,7 +34,7 @@ const Workout = () => {
   const queryClient = useQueryClient();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
-  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   
   // Timer state
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -169,6 +168,48 @@ const Workout = () => {
     }, 0);
   }, 0);
 
+  // Group exercises into supersets (pairs after the first exercise)
+  const exerciseGroups = useMemo(() => {
+    if (!workout?.exercises) return [];
+    
+    const groups: { id: string; label: string; exercises: typeof workout.exercises }[] = [];
+    const exercises = workout.exercises;
+    
+    if (exercises.length === 0) return groups;
+    
+    // First exercise is always standalone (A)
+    if (exercises.length > 0) {
+      groups.push({
+        id: exercises[0].id,
+        label: "A",
+        exercises: [exercises[0]],
+      });
+    }
+    
+    // Remaining exercises are paired into supersets (B1/B2, C1/C2, etc.)
+    let groupIndex = 1; // Start with B
+    for (let i = 1; i < exercises.length; i += 2) {
+      const letter = String.fromCharCode(65 + groupIndex);
+      const pair = exercises.slice(i, i + 2);
+      
+      // Add labels to exercises in the group
+      const labeledExercises = pair.map((ex, idx) => ({
+        ...ex,
+        label: pair.length > 1 ? `${letter}${idx + 1}` : letter,
+      }));
+      
+      groups.push({
+        id: `group-${letter}`,
+        label: letter,
+        exercises: labeledExercises as typeof workout.exercises,
+      });
+      
+      groupIndex++;
+    }
+    
+    return groups;
+  }, [workout?.exercises]);
+
   const progress = workout?.exercises
     ? Math.round((completedExercises.size / workout.exercises.length) * 100)
     : 0;
@@ -290,42 +331,35 @@ const Workout = () => {
           </p>
           
           <div className="space-y-0">
-            {workout.exercises?.map((exercise, index) => {
-              // Generate letter labels like A, B1, B2, C1, C2, etc.
-              const letterIndex = Math.floor(index / 2);
-              const letter = String.fromCharCode(65 + letterIndex);
-              const subIndex = index % 2 === 0 ? 1 : 2;
-              const label = index < 2 ? letter : `${letter}${subIndex}`;
-              
-              const lastWorkout = workout.lastWorkoutByExercise?.[exercise.id] || null;
-              
-              return (
-                <ExerciseDetailCard
-                  key={exercise.id}
-                  id={exercise.id}
-                  name={exercise.name}
-                  sets={exercise.sets}
-                  reps={exercise.reps}
-                  weight={exercise.weight}
-                  notes={exercise.notes}
-                  videoUrl={exercise.video_url}
-                  restSeconds={exercise.rest_seconds}
-                  label={label}
-                  isExpanded={expandedExerciseId === exercise.id}
-                  lastWorkout={lastWorkout ? {
-                    sets: lastWorkout.sets,
-                    reps: lastWorkout.reps,
-                    weight: lastWorkout.weight
-                  } : null}
-                  onToggleExpand={() => 
-                    setExpandedExerciseId(
-                      expandedExerciseId === exercise.id ? null : exercise.id
-                    )
-                  }
-                  onComplete={(isComplete, completedSets) => handleExerciseComplete(exercise.id, isComplete, completedSets)}
-                />
-              );
-            })}
+            {exerciseGroups.map((group) => (
+              <ExerciseGroupCard
+                key={group.id}
+                groupLabel={group.label}
+                exercises={group.exercises.map((exercise) => ({
+                  id: exercise.id,
+                  name: exercise.name,
+                  sets: exercise.sets,
+                  reps: exercise.reps,
+                  weight: exercise.weight,
+                  notes: exercise.notes,
+                  videoUrl: exercise.video_url,
+                  restSeconds: exercise.rest_seconds,
+                  label: (exercise as any).label || group.label,
+                  lastWorkout: workout.lastWorkoutByExercise?.[exercise.id] ? {
+                    sets: workout.lastWorkoutByExercise[exercise.id].sets,
+                    reps: workout.lastWorkoutByExercise[exercise.id].reps,
+                    weight: workout.lastWorkoutByExercise[exercise.id].weight,
+                  } : null,
+                }))}
+                isExpanded={expandedGroupId === group.id}
+                onToggleExpand={() =>
+                  setExpandedGroupId(
+                    expandedGroupId === group.id ? null : group.id
+                  )
+                }
+                onComplete={handleExerciseComplete}
+              />
+            ))}
           </div>
         </div>
 
