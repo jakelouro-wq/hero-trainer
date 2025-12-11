@@ -15,6 +15,7 @@ interface Exercise {
   weight: string | null;
   notes: string | null;
   video_url: string | null;
+  rest_seconds: number | null;
   order_index: number;
 }
 
@@ -221,6 +222,7 @@ const Workout = () => {
                   weight={exercise.weight}
                   notes={exercise.notes}
                   videoUrl={exercise.video_url}
+                  restSeconds={exercise.rest_seconds}
                   label={label}
                   isExpanded={expandedExerciseId === exercise.id}
                   lastWorkout={lastWorkout ? {
