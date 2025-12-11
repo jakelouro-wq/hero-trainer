@@ -7,11 +7,13 @@ import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight } from "lucide-r
 import { useAuth } from "@/hooks/useAuth";
 import { useNextWorkout, useUpcomingWorkouts } from "@/hooks/useNextWorkout";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { user } = useAuth();
   const { data: nextWorkout, isLoading: workoutLoading } = useNextWorkout();
   const { data: upcomingWorkouts } = useUpcomingWorkouts(3);
+  const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Athlete";
 
@@ -72,7 +74,10 @@ const Index = () => {
                       <span className="text-sm">{nextWorkout.workout_template.focus || "Full Body"}</span>
                     </div>
                   </div>
-                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold glow transition-all duration-300 hover:scale-105">
+                  <Button 
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold glow transition-all duration-300 hover:scale-105"
+                    onClick={() => navigate(`/workout/${nextWorkout.id}`)}
+                  >
                     Start Workout
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
