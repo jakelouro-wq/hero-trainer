@@ -8,6 +8,10 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Workout from "./pages/Workout";
 import NotFound from "./pages/NotFound";
+import CoachDashboard from "./pages/coach/CoachDashboard";
+import ProgramsPage from "./pages/coach/ProgramsPage";
+import ProgramDetailPage from "./pages/coach/ProgramDetailPage";
+import ClientsPage from "./pages/coach/ClientsPage";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +56,10 @@ const AppRoutes = () => (
     <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/workout/:id" element={<ProtectedRoute><Workout /></ProtectedRoute>} />
+    <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
+    <Route path="/coach/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
+    <Route path="/coach/programs/:id" element={<ProtectedRoute><ProgramDetailPage /></ProtectedRoute>} />
+    <Route path="/coach/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
