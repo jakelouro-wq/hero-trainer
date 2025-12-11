@@ -16,6 +16,11 @@ interface LastWorkoutData {
   weight: string | null;
 }
 
+export interface CompletedSetData {
+  reps: string;
+  weight: string;
+}
+
 interface ExerciseDetailCardProps {
   id: string;
   name: string;
@@ -29,7 +34,7 @@ interface ExerciseDetailCardProps {
   isExpanded: boolean;
   lastWorkout: LastWorkoutData | null;
   onToggleExpand: () => void;
-  onComplete: (allSetsCompleted: boolean) => void;
+  onComplete: (allSetsCompleted: boolean, completedSets: CompletedSetData[]) => void;
 }
 
 const ExerciseDetailCard = ({
@@ -64,7 +69,8 @@ const ExerciseDetailCard = ({
       const updated = [...prev];
       updated[index] = { ...updated[index], completed: !updated[index].completed };
       const allCompleted = updated.every((set) => set.completed);
-      onComplete(allCompleted);
+      const completedSets = updated.filter(s => s.completed).map(s => ({ reps: s.reps, weight: s.weight }));
+      onComplete(allCompleted, completedSets);
       return updated;
     });
   };
@@ -97,8 +103,10 @@ const ExerciseDetailCard = ({
 
   const markAllComplete = () => {
     const allComplete = setsData.every((s) => s.completed);
-    setSetsData((prev) => prev.map((s) => ({ ...s, completed: !allComplete })));
-    onComplete(!allComplete);
+    const newCompletedState = !allComplete;
+    setSetsData((prev) => prev.map((s) => ({ ...s, completed: newCompletedState })));
+    const completedSets = newCompletedState ? setsData.map(s => ({ reps: s.reps, weight: s.weight })) : [];
+    onComplete(newCompletedState, completedSets);
   };
 
   // Extract YouTube video ID from URL
