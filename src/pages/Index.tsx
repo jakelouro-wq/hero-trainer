@@ -4,25 +4,24 @@ import StatsCard from "@/components/StatsCard";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import ProgressRing from "@/components/ProgressRing";
 import { Trophy, Flame, Calendar, TrendingUp, Zap } from "lucide-react";
-
-const todayWorkout = {
-  title: "Push Day",
-  subtitle: "Week 3 • Day 3",
-  duration: "55 min",
-  calories: "420 cal",
-  focus: "Chest & Shoulders",
-  progress: 40,
-  exercises: [
-    { name: "Barbell Bench Press", sets: 4, reps: "8-10", weight: "185 lbs", completed: true },
-    { name: "Incline Dumbbell Press", sets: 3, reps: "10-12", weight: "60 lbs", completed: true },
-    { name: "Overhead Press", sets: 4, reps: "8-10", weight: "95 lbs", notes: "Focus on strict form" },
-    { name: "Dumbbell Lateral Raises", sets: 3, reps: "12-15", weight: "20 lbs" },
-    { name: "Cable Flyes", sets: 3, reps: "12-15", notes: "Squeeze at the top" },
-    { name: "Tricep Pushdowns", sets: 3, reps: "12-15", weight: "50 lbs" },
-  ],
-};
+import { useAuth } from "@/hooks/useAuth";
+import { useNextWorkout, useUpcomingWorkouts } from "@/hooks/useNextWorkout";
+import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
 const Index = () => {
+  const { user } = useAuth();
+  const { data: nextWorkout, isLoading: workoutLoading } = useNextWorkout();
+  const { data: upcomingWorkouts } = useUpcomingWorkouts(3);
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Athlete";
+
+  const formatWorkoutDate = (dateStr: string) => {
+    const date = parseISO(dateStr);
+    if (isToday(date)) return "Today";
+    if (isTomorrow(date)) return "Tomorrow";
+    return format(date, "EEEE");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -32,11 +31,11 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mb-8 opacity-0 animate-fade-in">
             <p className="text-muted-foreground mb-2">Welcome back,</p>
-            <h1 className="text-4xl md:text-5xl font-display font-extrabold tracking-tight">
-              ALEX <span className="text-primary">JOHNSON</span>
+            <h1 className="text-4xl md:text-5xl font-display font-extrabold tracking-tight uppercase">
+              {userName.split(" ")[0]} <span className="text-primary">{userName.split(" ")[1] || ""}</span>
             </h1>
             <p className="text-muted-foreground mt-2">
-              You're on a <span className="text-primary font-semibold">12-day streak</span>. Keep pushing!
+              Ready for your next workout? <span className="text-primary font-semibold">Let's go!</span>
             </p>
           </div>
 
@@ -52,9 +51,37 @@ const Index = () => {
           <div className="lg:col-span-2">
             <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5 text-primary" />
-              Today's Workout
+              {nextWorkout ? "Next Workout" : "Today's Workout"}
             </h2>
-            <WorkoutCard {...todayWorkout} />
+            
+            {workoutLoading ? (
+              <div className="card-gradient rounded-2xl border border-border p-8 text-center">
+                <div className="animate-pulse text-muted-foreground">Loading workout...</div>
+              </div>
+            ) : nextWorkout ? (
+              <WorkoutCard
+                title={nextWorkout.workout_template.title}
+                subtitle={`Scheduled: ${formatWorkoutDate(nextWorkout.scheduled_date)}`}
+                duration={nextWorkout.workout_template.duration || "45 min"}
+                calories={nextWorkout.workout_template.calories || "350 cal"}
+                focus={nextWorkout.workout_template.focus || "Full Body"}
+                progress={0}
+                exercises={nextWorkout.exercises.map((e) => ({
+                  name: e.name,
+                  sets: e.sets,
+                  reps: e.reps,
+                  weight: e.weight || undefined,
+                  notes: e.notes || undefined,
+                }))}
+              />
+            ) : (
+              <div className="card-gradient rounded-2xl border border-border p-8 text-center">
+                <p className="text-muted-foreground mb-2">No workouts scheduled</p>
+                <p className="text-sm text-muted-foreground">
+                  Contact your coach to get your training program set up.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Stats */}
@@ -77,28 +104,28 @@ const Index = () => {
               <StatsCard
                 icon={Trophy}
                 label="Total Workouts"
-                value="47"
-                subtext="+3 this week"
+                value="0"
+                subtext="Get started!"
                 delay={500}
               />
               <StatsCard
                 icon={Flame}
                 label="Current Streak"
-                value="12"
+                value="0"
                 subtext="Days"
                 delay={600}
               />
               <StatsCard
                 icon={Calendar}
                 label="This Month"
-                value="18"
+                value="0"
                 subtext="Sessions"
                 delay={700}
               />
               <StatsCard
                 icon={TrendingUp}
                 label="PR's Hit"
-                value="8"
+                value="0"
                 subtext="All time"
                 delay={800}
               />
@@ -108,33 +135,25 @@ const Index = () => {
             <div className="card-gradient rounded-xl p-5 border border-border opacity-0 animate-fade-in" style={{ animationDelay: "900ms" }}>
               <h3 className="font-semibold text-foreground mb-4">Coming Up</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Pull Day</p>
-                    <p className="text-sm text-muted-foreground">Tomorrow</p>
-                  </div>
-                  <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
-                    Back & Biceps
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Leg Day</p>
-                    <p className="text-sm text-muted-foreground">Friday</p>
-                  </div>
-                  <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
-                    Quads & Glutes
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                  <div>
-                    <p className="font-medium text-muted-foreground">Rest Day</p>
-                    <p className="text-sm text-muted-foreground">Saturday</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground font-medium bg-secondary/50 px-2 py-1 rounded-full">
-                    Recovery
-                  </span>
-                </div>
+                {upcomingWorkouts && upcomingWorkouts.length > 0 ? (
+                  upcomingWorkouts.map((workout: any) => (
+                    <div key={workout.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">{workout.workout_templates?.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatWorkoutDate(workout.scheduled_date)}
+                        </p>
+                      </div>
+                      <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
+                        {workout.workout_templates?.focus || "Workout"}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No upcoming workouts scheduled
+                  </p>
+                )}
               </div>
             </div>
           </div>
