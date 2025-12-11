@@ -31,7 +31,7 @@ const WorkoutCard = ({ title, subtitle, duration, calories, focus, exercises, pr
             <p className="text-primary text-sm font-medium uppercase tracking-wider mb-1">{subtitle}</p>
             <h3 className="text-2xl font-bold text-foreground">{title}</h3>
           </div>
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold glow">
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold glow transition-all duration-300 hover:scale-105">
             Start Workout
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
@@ -44,7 +44,7 @@ const WorkoutCard = ({ title, subtitle, duration, calories, focus, exercises, pr
             <span className="text-sm">{duration}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Flame className="w-4 h-4 text-orange-500" />
+            <Flame className="w-4 h-4 text-primary" />
             <span className="text-sm">{calories}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -61,7 +61,7 @@ const WorkoutCard = ({ title, subtitle, duration, calories, focus, exercises, pr
           </div>
           <div className="h-2 bg-secondary rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-primary to-cyan-300 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
