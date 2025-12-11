@@ -61,7 +61,7 @@ const WorkoutCard = ({ title, subtitle, duration, calories, focus, exercises, pr
           </div>
           <div className="h-2 bg-secondary rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-primary to-cyan-300 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-primary to-blue-300 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
