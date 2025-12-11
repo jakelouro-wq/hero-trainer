@@ -1,8 +1,11 @@
-import { Bell, User, Menu } from "lucide-react";
+import { Bell, User, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import louroLogo from "@/assets/louro-logo.png";
 
 const Header = () => {
+  const { signOut } = useAuth();
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -31,6 +34,15 @@ const Header = () => {
           </Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
             <User className="w-5 h-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary"
+            onClick={signOut}
+            title="Sign out"
+          >
+            <LogOut className="w-5 h-5" />
           </Button>
           <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground hover:bg-secondary">
             <Menu className="w-5 h-5" />
