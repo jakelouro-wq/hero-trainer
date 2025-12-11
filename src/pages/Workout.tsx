@@ -297,7 +297,7 @@ const Workout = () => {
             </div>
 
             {/* Total Weight Lifted */}
-            {hasStarted && totalWeightLifted > 0 && (
+            {hasStarted && (
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-4 h-4 text-primary" />
                 <span className="text-foreground font-semibold">
