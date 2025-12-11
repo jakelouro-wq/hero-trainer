@@ -1,17 +1,13 @@
 import { Bell, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import louroLogo from "@/assets/louro-logo.png";
 
 const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-display text-2xl font-extrabold tracking-tight text-foreground">
-            LOURO
-          </span>
-          <span className="font-display text-sm font-semibold tracking-widest text-primary uppercase">
-            Training
-          </span>
+        <div className="flex items-center">
+          <img src={louroLogo} alt="Louro Training" className="h-10" />
         </div>
 
         <nav className="hidden md:flex items-center gap-8">
