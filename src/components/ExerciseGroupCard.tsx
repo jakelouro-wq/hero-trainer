@@ -420,7 +420,6 @@ const ExerciseGroupCard = ({
                   </div>
                   <p className="text-primary font-medium text-sm">
                     {state?.setsData.length || exercise.sets} x {exercise.reps}
-                    {exercise.weight && ` @ ${exercise.weight}`}
                   </p>
                 </div>
               );
