@@ -1,16 +1,16 @@
-import { Dumbbell, Bell, User, Menu } from "lucide-react";
+import { Bell, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Header = () => {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center glow">
-            <Dumbbell className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-display text-2xl tracking-wide text-foreground">
-            TRAIN<span className="text-primary">HEROIC</span>
+        <div className="flex items-center gap-2">
+          <span className="font-display text-2xl font-extrabold tracking-tight text-foreground">
+            LOURO
+          </span>
+          <span className="font-display text-sm font-semibold tracking-widest text-primary uppercase">
+            Training
           </span>
         </div>
 
@@ -30,13 +30,13 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
             <Bell className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
             <User className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground hover:bg-secondary">
             <Menu className="w-5 h-5" />
           </Button>
         </div>

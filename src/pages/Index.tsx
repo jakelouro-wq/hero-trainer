@@ -32,8 +32,8 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mb-8 opacity-0 animate-fade-in">
             <p className="text-muted-foreground mb-2">Welcome back,</p>
-            <h1 className="text-4xl md:text-5xl font-display tracking-wide">
-              ALEX <span className="text-gradient">JOHNSON</span>
+            <h1 className="text-4xl md:text-5xl font-display font-extrabold tracking-tight">
+              ALEX <span className="text-primary">JOHNSON</span>
             </h1>
             <p className="text-muted-foreground mt-2">
               You're on a <span className="text-primary font-semibold">12-day streak</span>. Keep pushing!
