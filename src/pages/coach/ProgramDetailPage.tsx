@@ -49,6 +49,7 @@ const ProgramDetailPage = () => {
     weight: "",
     notes: "",
     video_url: "",
+    rest_seconds: 60,
   });
 
   const { data: program, isLoading } = useQuery({
@@ -142,6 +143,7 @@ const ProgramDetailPage = () => {
         weight: newExercise.weight || null,
         notes: newExercise.notes || null,
         video_url: newExercise.video_url || null,
+        rest_seconds: newExercise.rest_seconds || 60,
         workout_template_id: selectedWorkout,
         order_index: existingExercises.length,
       }).select().single();
@@ -159,6 +161,7 @@ const ProgramDetailPage = () => {
         weight: "",
         notes: "",
         video_url: "",
+        rest_seconds: 60,
       });
       toast.success("Exercise added");
     },
@@ -499,6 +502,20 @@ const ProgramDetailPage = () => {
                 value={newExercise.video_url}
                 onChange={(e) => setNewExercise({ ...newExercise, video_url: e.target.value })}
                 placeholder="https://youtube.com/watch?v=..."
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label htmlFor="restSeconds">Rest Between Sets (seconds)</Label>
+              <Input
+                id="restSeconds"
+                type="number"
+                min={0}
+                value={newExercise.rest_seconds}
+                onChange={(e) =>
+                  setNewExercise({ ...newExercise, rest_seconds: parseInt(e.target.value) || 60 })
+                }
+                placeholder="60"
                 className="bg-secondary border-border"
               />
             </div>

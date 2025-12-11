@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight } from "lucide-react";
+import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import RestTimer from "./RestTimer";
 
 interface SetData {
   reps: string;
@@ -22,6 +24,7 @@ interface ExerciseDetailCardProps {
   weight: string | null;
   notes: string | null;
   videoUrl: string | null;
+  restSeconds: number | null;
   label: string;
   isExpanded: boolean;
   lastWorkout: LastWorkoutData | null;
@@ -37,6 +40,7 @@ const ExerciseDetailCard = ({
   weight,
   notes,
   videoUrl,
+  restSeconds,
   label,
   isExpanded,
   lastWorkout,
@@ -51,6 +55,7 @@ const ExerciseDetailCard = ({
     }))
   );
   const [exerciseNote, setExerciseNote] = useState("");
+  const [showRestTimer, setShowRestTimer] = useState(false);
 
   const allSetsCompleted = setsData.every((set) => set.completed);
 
@@ -309,6 +314,23 @@ const ExerciseDetailCard = ({
             </button>
           </div>
 
+          {/* Rest Timer Button */}
+          {restSeconds && restSeconds > 0 && (
+            <div className="mt-4">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRestTimer(true);
+                }}
+                variant="outline"
+                className="w-full border-primary text-primary hover:bg-primary/10"
+              >
+                <Timer className="w-4 h-4 mr-2" />
+                Start Rest Timer ({Math.floor(restSeconds / 60)}:{(restSeconds % 60).toString().padStart(2, "0")})
+              </Button>
+            </div>
+          )}
+
           {/* Add Exercise Note */}
           <div className="mt-4">
             <Input
@@ -321,6 +343,11 @@ const ExerciseDetailCard = ({
             />
           </div>
         </div>
+      )}
+
+      {/* Rest Timer Modal */}
+      {showRestTimer && restSeconds && (
+        <RestTimer restSeconds={restSeconds} onClose={() => setShowRestTimer(false)} />
       )}
     </div>
   );

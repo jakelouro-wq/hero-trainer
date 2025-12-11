@@ -107,6 +107,7 @@ export type Database = {
           notes: string | null
           order_index: number
           reps: string
+          rest_seconds: number | null
           sets: number
           video_url: string | null
           weight: string | null
@@ -118,6 +119,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           reps: string
+          rest_seconds?: number | null
           sets?: number
           video_url?: string | null
           weight?: string | null
@@ -129,6 +131,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           reps?: string
+          rest_seconds?: number | null
           sets?: number
           video_url?: string | null
           weight?: string | null
