@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Flame, Target, CheckCircle2, Circle } from "lucide-react";
+import { ArrowLeft, Clock, Flame, Target } from "lucide-react";
 import { useState } from "react";
+import ExerciseDetailCard from "@/components/ExerciseDetailCard";
 
 interface Exercise {
   id: string;
@@ -21,6 +22,7 @@ const Workout = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
 
   const { data: workout, isLoading } = useQuery({
     queryKey: ["workout", id],
@@ -54,13 +56,13 @@ const Workout = () => {
     enabled: !!user && !!id,
   });
 
-  const toggleExercise = (exerciseId: string) => {
+  const handleExerciseComplete = (exerciseId: string, isComplete: boolean) => {
     setCompletedExercises((prev) => {
       const next = new Set(prev);
-      if (next.has(exerciseId)) {
-        next.delete(exerciseId);
-      } else {
+      if (isComplete) {
         next.add(exerciseId);
+      } else {
+        next.delete(exerciseId);
       }
       return next;
     });
@@ -156,9 +158,8 @@ const Workout = () => {
             Strength / Power
           </p>
           
-          <div className="space-y-1">
+          <div className="space-y-0">
             {workout.exercises?.map((exercise, index) => {
-              const isCompleted = completedExercises.has(exercise.id);
               // Generate letter labels like A, B1, B2, C1, C2, etc.
               const letterIndex = Math.floor(index / 2);
               const letter = String.fromCharCode(65 + letterIndex);
@@ -166,58 +167,23 @@ const Workout = () => {
               const label = index < 2 ? letter : `${letter}${subIndex}`;
               
               return (
-                <div
+                <ExerciseDetailCard
                   key={exercise.id}
-                  className="py-4 border-b border-border/50 last:border-b-0 cursor-pointer transition-opacity duration-200"
-                  onClick={() => toggleExercise(exercise.id)}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Letter Label Circle */}
-                    <div 
-                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        isCompleted 
-                          ? "border-primary bg-primary/20" 
-                          : "border-muted-foreground/50"
-                      }`}
-                    >
-                      <span className={`text-sm font-semibold ${isCompleted ? "text-primary" : "text-muted-foreground"}`}>
-                        {label}
-                      </span>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3
-                        className={`font-bold text-base ${
-                          isCompleted ? "text-muted-foreground line-through" : "text-foreground"
-                        }`}
-                      >
-                        {exercise.name}
-                      </h3>
-                      
-                      {/* Sets x Reps in primary color */}
-                      <p className="text-primary font-medium text-sm mt-1">
-                        {exercise.sets} x {exercise.reps}
-                        {exercise.weight && ` @ ${exercise.weight}`}
-                      </p>
-                      
-                      {exercise.notes && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {exercise.notes}
-                        </p>
-                      )}
-                    </div>
-                    
-                    {/* Completion indicator */}
-                    <div className="flex-shrink-0">
-                      {isCompleted ? (
-                        <CheckCircle2 className="w-6 h-6 text-primary" />
-                      ) : (
-                        <Circle className="w-6 h-6 text-muted-foreground/50" />
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  id={exercise.id}
+                  name={exercise.name}
+                  sets={exercise.sets}
+                  reps={exercise.reps}
+                  weight={exercise.weight}
+                  notes={exercise.notes}
+                  label={label}
+                  isExpanded={expandedExerciseId === exercise.id}
+                  onToggleExpand={() => 
+                    setExpandedExerciseId(
+                      expandedExerciseId === exercise.id ? null : exercise.id
+                    )
+                  }
+                  onComplete={(isComplete) => handleExerciseComplete(exercise.id, isComplete)}
+                />
               );
             })}
           </div>
