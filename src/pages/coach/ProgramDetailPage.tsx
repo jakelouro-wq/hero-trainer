@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, Link2, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 
@@ -172,9 +172,9 @@ const ProgramDetailPage = () => {
         weight: newExercise.weight || null,
         notes: newExercise.notes || null,
         video_url: newExercise.video_url || null,
-        rest_seconds: newExercise.rest_seconds || 60,
+        rest_seconds: newExercise.rest_seconds,
         rir: newExercise.rir || null,
-        superset_group: newExercise.superset_group || null,
+        superset_group: null,
         workout_template_id: selectedWorkout,
         order_index: existingExercises.length,
       }).select().single();
@@ -288,7 +288,7 @@ const ProgramDetailPage = () => {
           weight: editingExercise.weight || null,
           notes: editingExercise.notes || null,
           video_url: editingExercise.video_url || null,
-          rest_seconds: editingExercise.rest_seconds || 60,
+          rest_seconds: editingExercise.rest_seconds,
           rir: editingExercise.rir || null,
           superset_group: editingExercise.superset_group || null,
         })
@@ -316,11 +316,130 @@ const ProgramDetailPage = () => {
       weight: exercise.weight || "",
       notes: exercise.notes || "",
       video_url: exercise.video_url || "",
-      rest_seconds: exercise.rest_seconds || 60,
+      rest_seconds: exercise.rest_seconds ?? 60,
       rir: exercise.rir || "",
       superset_group: exercise.superset_group || "",
     });
     setIsEditExerciseDialogOpen(true);
+  };
+
+  // Link exercises together as superset
+  const linkWithAbove = useMutation({
+    mutationFn: async ({ exerciseId, workoutId }: { exerciseId: string; workoutId: string }) => {
+      const workout = workouts?.find((w) => w.id === workoutId);
+      if (!workout) throw new Error("Workout not found");
+
+      const exercises = (workout.exercises as any[])?.sort((a, b) => a.order_index - b.order_index) || [];
+      const currentIndex = exercises.findIndex((e) => e.id === exerciseId);
+      if (currentIndex <= 0) throw new Error("No exercise above to link with");
+
+      const currentExercise = exercises[currentIndex];
+      const aboveExercise = exercises[currentIndex - 1];
+
+      // Get the superset group of the exercise above, or assign a new one
+      let supersetGroup = aboveExercise.superset_group;
+      
+      if (!supersetGroup) {
+        // Find the next available letter
+        const usedGroups = new Set(exercises.map((e) => e.superset_group).filter(Boolean));
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        supersetGroup = letters.find((l) => !usedGroups.has(l)) || 'A';
+        
+        // Update the above exercise with the new group
+        await supabase
+          .from("exercises")
+          .update({ superset_group: supersetGroup })
+          .eq("id", aboveExercise.id);
+      }
+
+      // Update current exercise with the same group
+      const { error } = await supabase
+        .from("exercises")
+        .update({ superset_group: supersetGroup })
+        .eq("id", exerciseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      toast.success("Exercises linked as superset");
+    },
+    onError: (error) => {
+      toast.error("Failed to link: " + error.message);
+    },
+  });
+
+  // Unlink exercise from superset
+  const unlinkExercise = useMutation({
+    mutationFn: async ({ exerciseId, workoutId }: { exerciseId: string; workoutId: string }) => {
+      const workout = workouts?.find((w) => w.id === workoutId);
+      if (!workout) throw new Error("Workout not found");
+
+      const exercises = (workout.exercises as any[]) || [];
+      const currentExercise = exercises.find((e) => e.id === exerciseId);
+      if (!currentExercise?.superset_group) throw new Error("Exercise not in a superset");
+
+      const sameGroupExercises = exercises.filter(
+        (e) => e.superset_group === currentExercise.superset_group && e.id !== exerciseId
+      );
+
+      // Remove current exercise from superset
+      await supabase
+        .from("exercises")
+        .update({ superset_group: null })
+        .eq("id", exerciseId);
+
+      // If only one exercise left in group, remove that too
+      if (sameGroupExercises.length === 1) {
+        await supabase
+          .from("exercises")
+          .update({ superset_group: null })
+          .eq("id", sameGroupExercises[0].id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      toast.success("Exercise unlinked from superset");
+    },
+    onError: (error) => {
+      toast.error("Failed to unlink: " + error.message);
+    },
+  });
+
+  // Helper to get exercise letter label
+  const getExerciseLabel = (exercises: any[], index: number) => {
+    const sortedExercises = [...exercises].sort((a, b) => a.order_index - b.order_index);
+    const exercise = sortedExercises[index];
+    
+    let letterIndex = 0;
+    let subIndex = 1;
+    
+    for (let i = 0; i <= index; i++) {
+      const current = sortedExercises[i];
+      const prev = i > 0 ? sortedExercises[i - 1] : null;
+      
+      if (i === 0) {
+        letterIndex = 0;
+        subIndex = 1;
+      } else if (current.superset_group && prev?.superset_group === current.superset_group) {
+        subIndex++;
+      } else {
+        letterIndex++;
+        subIndex = 1;
+      }
+    }
+    
+    const letter = String.fromCharCode(65 + letterIndex); // A, B, C...
+    
+    // Check if this exercise is part of a superset
+    const sameGroupCount = exercises.filter(
+      (e) => e.superset_group && e.superset_group === exercise.superset_group
+    ).length;
+    
+    if (sameGroupCount > 1) {
+      return `${letter}${subIndex}`;
+    }
+    return letter;
   };
 
   if (isCheckingAccess || isLoading) {
@@ -440,55 +559,91 @@ const ProgramDetailPage = () => {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2 mb-3">
-                          {(workout.exercises as any[])?.map((exercise, index) => (
-                            <div
-                              key={exercise.id}
-                              className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
-                            >
-                              <div className="flex items-center gap-2">
-                                {exercise.superset_group && (
-                                  <span className="text-xs font-bold text-primary bg-primary/20 px-1.5 py-0.5 rounded">
-                                    {exercise.superset_group}
-                                  </span>
-                                )}
-                                <span className="text-xs text-muted-foreground w-4">
-                                  {index + 1}.
-                                </span>
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">
-                                    {exercise.name}
-                                  </p>
-                                  <p className="text-xs text-primary">
-                                    {exercise.sets} x {exercise.reps}
-                                    {exercise.weight && ` @ ${exercise.weight}`}
-                                    {exercise.rir && ` • RIR ${exercise.rir}`}
-                                  </p>
+                        <div className="space-y-1 mb-3">
+                          {(workout.exercises as any[])
+                            ?.sort((a, b) => a.order_index - b.order_index)
+                            .map((exercise, index, arr) => {
+                              const label = getExerciseLabel(arr, index);
+                              const isInSuperset = exercise.superset_group && arr.filter(e => e.superset_group === exercise.superset_group).length > 1;
+                              const prevInSameGroup = index > 0 && arr[index - 1].superset_group === exercise.superset_group;
+                              
+                              return (
+                                <div key={exercise.id}>
+                                  {/* Link button between exercises */}
+                                  {index > 0 && (
+                                    <div className="flex justify-center py-0.5">
+                                      {!prevInSameGroup ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
+                                          className="h-5 px-2 text-xs text-muted-foreground hover:text-primary"
+                                          disabled={linkWithAbove.isPending}
+                                        >
+                                          <Link2 className="w-3 h-3 mr-1" />
+                                          Link as superset
+                                        </Button>
+                                      ) : (
+                                        <div className="h-3 border-l-2 border-primary/50" />
+                                      )}
+                                    </div>
+                                  )}
+                                  <div
+                                    className={`flex items-center justify-between py-2 px-2 rounded ${
+                                      isInSuperset ? 'bg-primary/10 border-l-2 border-primary' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-xs font-bold min-w-[24px] ${isInSuperset ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        {label}
+                                      </span>
+                                      <div>
+                                        <p className="text-sm font-medium text-foreground">
+                                          {exercise.name}
+                                        </p>
+                                        <p className="text-xs text-primary">
+                                          {exercise.sets} x {exercise.reps}
+                                          {exercise.weight && ` @ ${exercise.weight}`}
+                                          {exercise.rir && ` • RIR ${exercise.rir}`}
+                                        </p>
+                                      </div>
+                                      {exercise.video_url && (
+                                        <Video className="w-3 h-3 text-primary" />
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {isInSuperset && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => unlinkExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
+                                          className="text-muted-foreground hover:text-destructive h-6 w-6"
+                                          title="Remove from superset"
+                                        >
+                                          <Unlink className="w-3 h-3" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openEditExercise(exercise)}
+                                        className="text-muted-foreground hover:text-primary h-6 w-6"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => deleteExercise.mutate(exercise.id)}
+                                        className="text-muted-foreground hover:text-destructive h-6 w-6"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
                                 </div>
-                                {exercise.video_url && (
-                                  <Video className="w-3 h-3 text-primary" />
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditExercise(exercise)}
-                                  className="text-muted-foreground hover:text-primary h-6 w-6"
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteExercise.mutate(exercise.id)}
-                                  className="text-muted-foreground hover:text-destructive h-6 w-6"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
                         </div>
                         <Button
                           variant="outline"
@@ -676,32 +831,13 @@ const ProgramDetailPage = () => {
                 min={0}
                 value={newExercise.rest_seconds}
                 onChange={(e) =>
-                  setNewExercise({ ...newExercise, rest_seconds: parseInt(e.target.value) || 60 })
+                  setNewExercise({ ...newExercise, rest_seconds: parseInt(e.target.value) ?? 0 })
                 }
                 placeholder="60"
                 className="bg-secondary border-border"
               />
-            </div>
-            <div>
-              <Label htmlFor="supersetGroup">Superset/Circuit Group</Label>
-              <Select
-                value={newExercise.superset_group || "none"}
-                onValueChange={(v) => setNewExercise({ ...newExercise, superset_group: v === "none" ? "" : v })}
-              >
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue placeholder="No grouping" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="none">No grouping</SelectItem>
-                  <SelectItem value="A">Group A</SelectItem>
-                  <SelectItem value="B">Group B</SelectItem>
-                  <SelectItem value="C">Group C</SelectItem>
-                  <SelectItem value="D">Group D</SelectItem>
-                  <SelectItem value="E">Group E</SelectItem>
-                </SelectContent>
-              </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Exercises with the same group are performed together as a superset/circuit
+                Use 0 for supersets/circuits. Link exercises together after adding.
               </p>
             </div>
             <div>
@@ -807,32 +943,13 @@ const ProgramDetailPage = () => {
                   min={0}
                   value={editingExercise.rest_seconds}
                   onChange={(e) =>
-                    setEditingExercise({ ...editingExercise, rest_seconds: parseInt(e.target.value) || 60 })
+                    setEditingExercise({ ...editingExercise, rest_seconds: parseInt(e.target.value) ?? 0 })
                   }
                   placeholder="60"
                   className="bg-secondary border-border"
                 />
-              </div>
-              <div>
-                <Label htmlFor="editSupersetGroup">Superset/Circuit Group</Label>
-                <Select
-                  value={editingExercise.superset_group || "none"}
-                  onValueChange={(v) => setEditingExercise({ ...editingExercise, superset_group: v === "none" ? "" : v })}
-                >
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue placeholder="No grouping" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="none">No grouping</SelectItem>
-                    <SelectItem value="A">Group A</SelectItem>
-                    <SelectItem value="B">Group B</SelectItem>
-                    <SelectItem value="C">Group C</SelectItem>
-                    <SelectItem value="D">Group D</SelectItem>
-                    <SelectItem value="E">Group E</SelectItem>
-                  </SelectContent>
-                </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Exercises with the same group are performed together
+                  Use 0 for supersets/circuits
                 </p>
               </div>
               <div>
