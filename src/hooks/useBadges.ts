@@ -153,7 +153,7 @@ export const useUserStats = () => {
         .eq("user_id", user.id)
         .eq("completed", true);
 
-      // Calculate streak (consecutive days with completed workouts)
+      // Calculate streak (consecutive weeks with 3+ workouts)
       const { data: completedWorkouts } = await supabase
         .from("user_workouts")
         .select("completed_at")
@@ -164,20 +164,33 @@ export const useUserStats = () => {
 
       let currentStreak = 0;
       if (completedWorkouts && completedWorkouts.length > 0) {
-        const dates = new Set(
-          completedWorkouts.map((w) => 
-            new Date(w.completed_at!).toISOString().split("T")[0]
-          )
-        );
-        
+        // Group workouts by week (ISO week number)
+        const getWeekKey = (date: Date) => {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+          const yearStart = new Date(d.getFullYear(), 0, 1);
+          const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+          return `${d.getFullYear()}-W${weekNum}`;
+        };
+
+        const workoutsByWeek = new Map<string, number>();
+        completedWorkouts.forEach((w) => {
+          const weekKey = getWeekKey(new Date(w.completed_at!));
+          workoutsByWeek.set(weekKey, (workoutsByWeek.get(weekKey) || 0) + 1);
+        });
+
+        // Check consecutive weeks with 3+ workouts starting from current week
         const today = new Date();
         let checkDate = new Date(today);
         
         while (true) {
-          const dateStr = checkDate.toISOString().split("T")[0];
-          if (dates.has(dateStr)) {
+          const weekKey = getWeekKey(checkDate);
+          const workoutsInWeek = workoutsByWeek.get(weekKey) || 0;
+          
+          if (workoutsInWeek >= 3) {
             currentStreak++;
-            checkDate.setDate(checkDate.getDate() - 1);
+            checkDate.setDate(checkDate.getDate() - 7);
           } else {
             break;
           }
