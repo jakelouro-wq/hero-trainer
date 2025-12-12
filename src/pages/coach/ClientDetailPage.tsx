@@ -28,7 +28,8 @@ import {
   Shield,
   Trophy,
   TrendingUp,
-  CalendarOff
+  CalendarOff,
+  Trash2
 } from "lucide-react";
 import ClientBlockedDates from "@/components/ClientBlockedDates";
 import { toast } from "sonner";
@@ -205,6 +206,25 @@ const ClientDetailPage = () => {
     },
     onError: (error) => {
       toast.error("Failed to reschedule: " + error.message);
+    },
+  });
+
+  // Delete workout mutation
+  const deleteWorkout = useMutation({
+    mutationFn: async (workoutId: string) => {
+      const { error } = await supabase
+        .from("user_workouts")
+        .delete()
+        .eq("id", workoutId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-workouts", clientId] });
+      toast.success("Workout deleted");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete: " + error.message);
     },
   });
 
@@ -422,13 +442,24 @@ const ClientDetailPage = () => {
                             </p>
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReschedule(workout)}
-                        >
-                          Reschedule
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReschedule(workout)}
+                          >
+                            Reschedule
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteWorkout.mutate(workout.id)}
+                            disabled={deleteWorkout.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -468,13 +499,24 @@ const ClientDetailPage = () => {
                             </p>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleReschedule(workout)}
-                        >
-                          Move
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleReschedule(workout)}
+                          >
+                            Move
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteWorkout.mutate(workout.id)}
+                            disabled={deleteWorkout.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     {upcomingWorkouts.length > 10 && (
@@ -521,6 +563,15 @@ const ClientDetailPage = () => {
                             </p>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteWorkout.mutate(workout.id)}
+                          disabled={deleteWorkout.isPending}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))}
                     {completedWorkouts.length > 10 && (
