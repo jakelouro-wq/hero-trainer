@@ -238,6 +238,7 @@ export type Database = {
           rest_seconds: number | null
           rir: string | null
           sets: number
+          superset_group: string | null
           video_url: string | null
           weight: string | null
           workout_template_id: string
@@ -251,6 +252,7 @@ export type Database = {
           rest_seconds?: number | null
           rir?: string | null
           sets?: number
+          superset_group?: string | null
           video_url?: string | null
           weight?: string | null
           workout_template_id: string
@@ -264,6 +266,7 @@ export type Database = {
           rest_seconds?: number | null
           rir?: string | null
           sets?: number
+          superset_group?: string | null
           video_url?: string | null
           weight?: string | null
           workout_template_id?: string
