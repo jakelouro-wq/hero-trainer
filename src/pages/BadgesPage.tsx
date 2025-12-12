@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
-import { useBadges, useUserBadges, useCheckAndAwardBadges, useUserStats } from "@/hooks/useBadges";
+import { useBadges, useUserBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/useBadges";
+import BadgeCelebration from "@/components/BadgeCelebration";
 import { Trophy, Flame, Dumbbell, Target, Lock } from "lucide-react";
 import { format } from "date-fns";
 
@@ -9,13 +10,35 @@ const BadgesPage = () => {
   const { data: userBadges, isLoading: userBadgesLoading } = useUserBadges();
   const { data: stats } = useUserStats();
   const checkBadges = useCheckAndAwardBadges();
+  
+  const [celebrationBadge, setCelebrationBadge] = useState<Badge | null>(null);
+  const [celebrationQueue, setCelebrationQueue] = useState<Badge[]>([]);
 
   // Check for new badges when stats update
   useEffect(() => {
-    if (stats) {
-      checkBadges.mutate(stats);
+    if (stats && allBadges) {
+      checkBadges.mutate(stats, {
+        onSuccess: (newBadgeIds) => {
+          if (newBadgeIds && newBadgeIds.length > 0) {
+            const newBadges = allBadges.filter(b => newBadgeIds.includes(b.id));
+            setCelebrationQueue(newBadges);
+          }
+        }
+      });
     }
-  }, [stats]);
+  }, [stats, allBadges]);
+
+  // Process celebration queue
+  useEffect(() => {
+    if (celebrationQueue.length > 0 && !celebrationBadge) {
+      setCelebrationBadge(celebrationQueue[0]);
+      setCelebrationQueue(prev => prev.slice(1));
+    }
+  }, [celebrationQueue, celebrationBadge]);
+
+  const handleCloseCelebration = () => {
+    setCelebrationBadge(null);
+  };
 
   const earnedBadgeIds = new Set(userBadges?.map((ub) => ub.badge_id) || []);
 
@@ -73,6 +96,12 @@ const BadgesPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
+      <BadgeCelebration 
+        badge={celebrationBadge} 
+        isOpen={!!celebrationBadge} 
+        onClose={handleCloseCelebration} 
+      />
+
       <main className="pt-24 pb-12 container mx-auto px-4">
         {/* Stats Summary */}
         <div className="mb-8">
@@ -117,22 +146,22 @@ const BadgesPage = () => {
                 return (
                   <div
                     key={badge.id}
-                    className={`relative rounded-xl p-4 border transition-all duration-300 ${
+                    className={`relative rounded-xl p-4 border transition-all duration-300 group ${
                       isEarned
-                        ? "card-gradient border-primary/50 shadow-lg shadow-primary/20"
-                        : "bg-secondary/30 border-border opacity-60"
+                        ? "card-gradient border-primary/50 shadow-lg shadow-primary/20 hover:scale-105"
+                        : "bg-secondary/30 border-border opacity-60 hover:opacity-80"
                     }`}
                   >
                     {/* Badge Icon */}
                     <div
-                      className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl ${
+                      className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl transition-transform duration-300 ${
                         isEarned
-                          ? `bg-gradient-to-br ${getCategoryColor(category)}`
+                          ? `bg-gradient-to-br ${getCategoryColor(category)} group-hover:scale-110`
                           : "bg-secondary"
                       }`}
                     >
                       {isEarned ? (
-                        <span>{badge.icon_url}</span>
+                        <span className="drop-shadow-lg">{badge.icon_url}</span>
                       ) : (
                         <Lock className="w-6 h-6 text-muted-foreground" />
                       )}
