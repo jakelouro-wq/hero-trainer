@@ -17,6 +17,7 @@ interface Exercise {
   notes: string | null;
   video_url: string | null;
   rest_seconds: number | null;
+  rir: string | null;
   order_index: number;
 }
 
@@ -344,6 +345,7 @@ const Workout = () => {
                   notes: exercise.notes,
                   videoUrl: exercise.video_url,
                   restSeconds: exercise.rest_seconds,
+                  rir: exercise.rir,
                   label: (exercise as any).label || group.label,
                   lastWorkout: workout.lastWorkoutByExercise?.[exercise.id] ? {
                     sets: workout.lastWorkoutByExercise[exercise.id].sets,

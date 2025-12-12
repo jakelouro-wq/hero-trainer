@@ -45,11 +45,12 @@ const ProgramDetailPage = () => {
   const [newExercise, setNewExercise] = useState({
     name: "",
     sets: 3,
-    reps: "10",
+    reps: "",
     weight: "",
     notes: "",
     video_url: "",
     rest_seconds: 60,
+    rir: "",
   });
 
   const { data: program, isLoading } = useQuery({
@@ -139,11 +140,12 @@ const ProgramDetailPage = () => {
       const { data, error } = await supabase.from("exercises").insert({
         name: newExercise.name,
         sets: newExercise.sets,
-        reps: newExercise.reps,
+        reps: newExercise.reps || "10",
         weight: newExercise.weight || null,
         notes: newExercise.notes || null,
         video_url: newExercise.video_url || null,
         rest_seconds: newExercise.rest_seconds || 60,
+        rir: newExercise.rir || null,
         workout_template_id: selectedWorkout,
         order_index: existingExercises.length,
       }).select().single();
@@ -157,11 +159,12 @@ const ProgramDetailPage = () => {
       setNewExercise({
         name: "",
         sets: 3,
-        reps: "10",
+        reps: "",
         weight: "",
         notes: "",
         video_url: "",
         rest_seconds: 60,
+        rir: "",
       });
       toast.success("Exercise added");
     },
@@ -306,6 +309,7 @@ const ProgramDetailPage = () => {
                                   <p className="text-xs text-primary">
                                     {exercise.sets} x {exercise.reps}
                                     {exercise.weight && ` @ ${exercise.weight}`}
+                                    {exercise.rir && ` • RIR ${exercise.rir}`}
                                   </p>
                                 </div>
                                 {exercise.video_url && (
@@ -494,6 +498,16 @@ const ProgramDetailPage = () => {
                   className="bg-secondary border-border"
                 />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="rir">RIR (Reps in Reserve)</Label>
+              <Input
+                id="rir"
+                value={newExercise.rir}
+                onChange={(e) => setNewExercise({ ...newExercise, rir: e.target.value })}
+                placeholder="e.g., 2-3"
+                className="bg-secondary border-border"
+              />
             </div>
             <div>
               <Label htmlFor="videoUrl">YouTube Video URL</Label>
