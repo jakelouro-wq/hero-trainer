@@ -7,6 +7,7 @@ import { ArrowLeft, Clock, Play, Pause, Dumbbell } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
 import { toast } from "sonner";
+import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
 
 interface Exercise {
   id: string;
@@ -371,7 +372,7 @@ const Workout = () => {
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
             disabled={progress < 100}
             onClick={async () => {
-              if (progress === 100 && id) {
+              if (progress === 100 && id && user) {
                 // Stop timer and save duration
                 setIsTimerRunning(false);
                 
@@ -387,8 +388,18 @@ const Workout = () => {
                 if (error) {
                   toast.error("Failed to save workout");
                 } else {
+                  // Reschedule remaining workouts to maintain weekday pattern
+                  try {
+                    await rescheduleRemainingWorkouts(user.id, id);
+                  } catch (rescheduleError) {
+                    console.error("Failed to reschedule workouts:", rescheduleError);
+                    // Don't show error to user - this is a background operation
+                  }
+                  
                   toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
                   queryClient.invalidateQueries({ queryKey: ["next-workout"] });
+                  queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
+                  queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
                   navigate("/");
                 }
               }
