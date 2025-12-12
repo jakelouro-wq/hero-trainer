@@ -37,8 +37,6 @@ const ProgramDetailPage = () => {
   const [newWorkout, setNewWorkout] = useState({
     title: "",
     subtitle: "",
-    duration: "45 min",
-    focus: "",
     week_number: 1,
     day_number: 1,
   });
@@ -89,8 +87,6 @@ const ProgramDetailPage = () => {
       const { data, error } = await supabase.from("workout_templates").insert({
         title: newWorkout.title,
         subtitle: newWorkout.subtitle,
-        duration: newWorkout.duration,
-        focus: newWorkout.focus,
         program_id: id,
         week_number: newWorkout.week_number,
         day_number: newWorkout.day_number,
@@ -105,8 +101,6 @@ const ProgramDetailPage = () => {
       setNewWorkout({
         title: "",
         subtitle: "",
-        duration: "45 min",
-        focus: "",
         week_number: 1,
         day_number: 1,
       });
@@ -414,26 +408,6 @@ const ProgramDetailPage = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div>
-              <Label htmlFor="duration">Duration</Label>
-              <Input
-                id="duration"
-                value={newWorkout.duration}
-                onChange={(e) => setNewWorkout({ ...newWorkout, duration: e.target.value })}
-                placeholder="e.g., 45 min"
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div>
-              <Label htmlFor="focus">Focus</Label>
-              <Input
-                id="focus"
-                value={newWorkout.focus}
-                onChange={(e) => setNewWorkout({ ...newWorkout, focus: e.target.value })}
-                placeholder="e.g., Chest & Triceps"
-                className="bg-secondary border-border"
-              />
             </div>
             <Button
               onClick={() => createWorkout.mutate()}
