@@ -1,14 +1,17 @@
-import { Bell, User, Menu, LogOut, Shield } from "lucide-react";
+import { Bell, User, Menu, LogOut, Shield, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import louroLogo from "@/assets/louro-logo.png";
 
 const Header = () => {
   const { signOut } = useAuth();
   const { isCoach } = useCoachAccess();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
@@ -20,20 +23,28 @@ const Header = () => {
         <nav className="hidden md:flex items-center gap-8">
           <a 
             onClick={() => navigate("/")}
-            className="text-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+            className={`font-medium hover:text-primary transition-colors cursor-pointer ${isActive("/") ? "text-primary" : "text-foreground"}`}
           >
             Dashboard
           </a>
-          <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-            Programs
+          <a 
+            onClick={() => navigate("/badges")}
+            className={`hover:text-primary transition-colors cursor-pointer flex items-center gap-1 ${isActive("/badges") ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <Trophy className="w-4 h-4" />
+            Badges
           </a>
-          <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-            Calendar
+          <a 
+            onClick={() => navigate("/community")}
+            className={`hover:text-primary transition-colors cursor-pointer flex items-center gap-1 ${isActive("/community") ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <Users className="w-4 h-4" />
+            Community
           </a>
           {isCoach && (
             <a 
               onClick={() => navigate("/coach")}
-              className="text-primary font-medium hover:text-primary/80 transition-colors cursor-pointer flex items-center gap-1"
+              className={`font-medium hover:text-primary/80 transition-colors cursor-pointer flex items-center gap-1 ${isActive("/coach") ? "text-primary" : "text-primary"}`}
             >
               <Shield className="w-4 h-4" />
               Coach
