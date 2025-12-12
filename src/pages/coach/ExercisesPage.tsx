@@ -298,17 +298,16 @@ const ExercisesPage = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {exercise.video_url && (
-                    <div className="flex items-center gap-2 text-sm text-primary">
-                      <Play className="w-4 h-4" />
-                      <a
-                        href={exercise.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline truncate"
-                      >
-                        Watch Video
-                      </a>
-                    </div>
+                    <a
+                      href={exercise.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Play className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">Watch Video</span>
+                    </a>
                   )}
                   {exercise.instructions && (
                     <p className="text-sm text-muted-foreground line-clamp-3">
