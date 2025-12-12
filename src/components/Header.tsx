@@ -32,7 +32,7 @@ const Header = () => {
             className={`hover:text-primary transition-colors cursor-pointer flex items-center gap-1 ${isActive("/badges") ? "text-primary" : "text-muted-foreground"}`}
           >
             <Trophy className="w-4 h-4" />
-            Badges
+            Trophy Closet
           </a>
           <a 
             onClick={() => navigate("/community")}
