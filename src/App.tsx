@@ -12,6 +12,7 @@ import CoachDashboard from "./pages/coach/CoachDashboard";
 import ProgramsPage from "./pages/coach/ProgramsPage";
 import ProgramDetailPage from "./pages/coach/ProgramDetailPage";
 import ClientsPage from "./pages/coach/ClientsPage";
+import ExercisesPage from "./pages/coach/ExercisesPage";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const AppRoutes = () => (
     <Route path="/coach/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
     <Route path="/coach/programs/:id" element={<ProtectedRoute><ProgramDetailPage /></ProtectedRoute>} />
     <Route path="/coach/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
+    <Route path="/coach/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

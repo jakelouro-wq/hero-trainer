@@ -42,10 +42,10 @@ const CoachDashboard = () => {
       href: "/coach/programs",
     },
     {
-      title: "Workouts",
-      description: "Build workout templates for programs",
+      title: "Exercises",
+      description: "Build your exercise library with videos & instructions",
       icon: Dumbbell,
-      href: "/coach/workouts",
+      href: "/coach/exercises",
     },
     {
       title: "Clients",
