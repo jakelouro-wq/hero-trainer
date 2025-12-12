@@ -23,10 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
-import { Pencil } from "lucide-react";
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -218,6 +217,64 @@ const ProgramDetailPage = () => {
     },
   });
 
+  const duplicateWorkout = useMutation({
+    mutationFn: async (workoutId: string) => {
+      // Find the workout to duplicate
+      const workoutToDuplicate = workouts?.find((w) => w.id === workoutId);
+      if (!workoutToDuplicate) throw new Error("Workout not found");
+
+      // Create a copy of the workout template
+      const { data: newWorkout, error: workoutError } = await supabase
+        .from("workout_templates")
+        .insert({
+          title: `${workoutToDuplicate.title} (Copy)`,
+          subtitle: workoutToDuplicate.subtitle,
+          duration: workoutToDuplicate.duration,
+          focus: workoutToDuplicate.focus,
+          program_id: id,
+          week_number: workoutToDuplicate.week_number,
+          day_number: workoutToDuplicate.day_number,
+        })
+        .select()
+        .single();
+
+      if (workoutError) throw workoutError;
+
+      // Copy all exercises from the original workout
+      const exercises = workoutToDuplicate.exercises as any[];
+      if (exercises && exercises.length > 0) {
+        const exerciseCopies = exercises.map((ex) => ({
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+          notes: ex.notes,
+          video_url: ex.video_url,
+          rest_seconds: ex.rest_seconds,
+          rir: ex.rir,
+          superset_group: ex.superset_group,
+          order_index: ex.order_index,
+          workout_template_id: newWorkout.id,
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from("exercises")
+          .insert(exerciseCopies);
+
+        if (exercisesError) throw exercisesError;
+      }
+
+      return newWorkout;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      toast.success("Workout duplicated! You can now edit the copy.");
+    },
+    onError: (error) => {
+      toast.error("Failed to duplicate workout: " + error.message);
+    },
+  });
+
   const updateExercise = useMutation({
     mutationFn: async () => {
       if (!editingExercise) return;
@@ -360,14 +417,26 @@ const ProgramDetailPage = () => {
                               <p className="text-xs text-muted-foreground">{workout.subtitle}</p>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteWorkout.mutate(workout.id)}
-                            className="text-muted-foreground hover:text-destructive h-8 w-8"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => duplicateWorkout.mutate(workout.id)}
+                              className="text-muted-foreground hover:text-primary h-8 w-8"
+                              title="Duplicate workout"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteWorkout.mutate(workout.id)}
+                              className="text-muted-foreground hover:text-destructive h-8 w-8"
+                              title="Delete workout"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
