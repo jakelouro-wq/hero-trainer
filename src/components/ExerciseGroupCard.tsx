@@ -30,6 +30,7 @@ interface ExerciseData {
   notes: string | null;
   videoUrl: string | null;
   restSeconds: number | null;
+  rir: string | null;
   label: string;
   lastWorkout: LastWorkoutData | null;
 }
@@ -59,8 +60,8 @@ const ExerciseGroupCard = ({
     exercises.forEach((ex) => {
       initial[ex.id] = {
         setsData: Array.from({ length: ex.sets }, () => ({
-          reps: ex.reps,
-          weight: ex.weight || "",
+          reps: "",
+          weight: "",
           completed: false,
         })),
         exerciseNote: "",
@@ -128,13 +129,11 @@ const ExerciseGroupCard = ({
   };
 
   const addSet = (exerciseId: string) => {
-    const exercise = exercises.find((ex) => ex.id === exerciseId);
-    if (!exercise) return;
     setExerciseStates((prev) => ({
       ...prev,
       [exerciseId]: {
         ...prev[exerciseId],
-        setsData: [...prev[exerciseId].setsData, { reps: exercise.reps, weight: exercise.weight || "", completed: false }],
+        setsData: [...prev[exerciseId].setsData, { reps: "", weight: "", completed: false }],
       },
     }));
   };
@@ -428,7 +427,8 @@ const ExerciseGroupCard = ({
                     </h3>
                   </div>
                   <p className="text-primary font-medium text-sm">
-                    {state?.setsData.length || exercise.sets} x {exercise.reps}
+                    {state?.setsData.length || exercise.sets} sets {exercise.reps && `x ${exercise.reps}`}
+                    {exercise.rir && <span className="ml-2 text-muted-foreground">RIR {exercise.rir}</span>}
                   </p>
                 </div>
               );

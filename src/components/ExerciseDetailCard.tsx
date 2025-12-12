@@ -30,6 +30,7 @@ interface ExerciseDetailCardProps {
   notes: string | null;
   videoUrl: string | null;
   restSeconds: number | null;
+  rir: string | null;
   label: string;
   isExpanded: boolean;
   lastWorkout: LastWorkoutData | null;
@@ -46,6 +47,7 @@ const ExerciseDetailCard = ({
   notes,
   videoUrl,
   restSeconds,
+  rir,
   label,
   isExpanded,
   lastWorkout,
@@ -54,8 +56,8 @@ const ExerciseDetailCard = ({
 }: ExerciseDetailCardProps) => {
   const [setsData, setSetsData] = useState<SetData[]>(() =>
     Array.from({ length: sets }, () => ({
-      reps: reps,
-      weight: weight || "",
+      reps: "",
+      weight: "",
       completed: false,
     }))
   );
@@ -92,7 +94,7 @@ const ExerciseDetailCard = ({
   };
 
   const addSet = () => {
-    setSetsData((prev) => [...prev, { reps: reps, weight: weight || "", completed: false }]);
+    setSetsData((prev) => [...prev, { reps: "", weight: "", completed: false }]);
   };
 
   const removeSet = () => {
@@ -153,8 +155,8 @@ const ExerciseDetailCard = ({
             </h3>
 
             <p className="text-primary font-medium text-sm mt-1">
-              {setsData.length} x {reps}
-              {weight && ` @ ${weight}`}
+              {setsData.length} sets {reps && `x ${reps}`}
+              {rir && <span className="ml-2 text-muted-foreground">RIR {rir}</span>}
             </p>
           </div>
 
