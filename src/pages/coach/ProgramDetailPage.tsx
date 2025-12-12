@@ -26,6 +26,7 @@ import {
 import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
+import { Pencil } from "lucide-react";
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +37,19 @@ const ProgramDetailPage = () => {
 
   const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
   const [isExerciseDialogOpen, setIsExerciseDialogOpen] = useState(false);
+  const [isEditExerciseDialogOpen, setIsEditExerciseDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [editingExercise, setEditingExercise] = useState<{
+    id: string;
+    name: string;
+    sets: number;
+    reps: string;
+    weight: string;
+    notes: string;
+    video_url: string;
+    rest_seconds: number;
+    rir: string;
+  } | null>(null);
   const [newWorkout, setNewWorkout] = useState({
     title: "",
     subtitle: "",
@@ -201,6 +214,52 @@ const ProgramDetailPage = () => {
     },
   });
 
+  const updateExercise = useMutation({
+    mutationFn: async () => {
+      if (!editingExercise) return;
+
+      const { error } = await supabase
+        .from("exercises")
+        .update({
+          name: editingExercise.name,
+          sets: editingExercise.sets,
+          reps: editingExercise.reps || "10",
+          weight: editingExercise.weight || null,
+          notes: editingExercise.notes || null,
+          video_url: editingExercise.video_url || null,
+          rest_seconds: editingExercise.rest_seconds || 60,
+          rir: editingExercise.rir || null,
+        })
+        .eq("id", editingExercise.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      setIsEditExerciseDialogOpen(false);
+      setEditingExercise(null);
+      toast.success("Exercise updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update exercise: " + error.message);
+    },
+  });
+
+  const openEditExercise = (exercise: any) => {
+    setEditingExercise({
+      id: exercise.id,
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: exercise.reps || "",
+      weight: exercise.weight || "",
+      notes: exercise.notes || "",
+      video_url: exercise.video_url || "",
+      rest_seconds: exercise.rest_seconds || 60,
+      rir: exercise.rir || "",
+    });
+    setIsEditExerciseDialogOpen(true);
+  };
+
   if (isCheckingAccess || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -330,14 +389,24 @@ const ProgramDetailPage = () => {
                                   <Video className="w-3 h-3 text-primary" />
                                 )}
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteExercise.mutate(exercise.id)}
-                                className="text-muted-foreground hover:text-destructive h-6 w-6"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditExercise(exercise)}
+                                  className="text-muted-foreground hover:text-primary h-6 w-6"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteExercise.mutate(exercise.id)}
+                                  className="text-muted-foreground hover:text-destructive h-6 w-6"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -551,6 +620,116 @@ const ProgramDetailPage = () => {
               {createExercise.isPending ? "Adding..." : "Add Exercise"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Exercise Dialog */}
+      <Dialog open={isEditExerciseDialogOpen} onOpenChange={setIsEditExerciseDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Exercise</DialogTitle>
+            <DialogDescription>Update this exercise's details</DialogDescription>
+          </DialogHeader>
+          {editingExercise && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editExerciseName">Exercise Name</Label>
+                <Input
+                  id="editExerciseName"
+                  value={editingExercise.name}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+                  placeholder="e.g., Bench Press"
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="editSets">Sets</Label>
+                  <Input
+                    id="editSets"
+                    type="number"
+                    min={1}
+                    value={editingExercise.sets}
+                    onChange={(e) =>
+                      setEditingExercise({ ...editingExercise, sets: parseInt(e.target.value) || 1 })
+                    }
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="editReps">Reps</Label>
+                  <Input
+                    id="editReps"
+                    value={editingExercise.reps}
+                    onChange={(e) => setEditingExercise({ ...editingExercise, reps: e.target.value })}
+                    placeholder="10"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="editWeight">Weight</Label>
+                  <Input
+                    id="editWeight"
+                    value={editingExercise.weight}
+                    onChange={(e) => setEditingExercise({ ...editingExercise, weight: e.target.value })}
+                    placeholder="135 lb"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="editRir">RIR (Reps in Reserve)</Label>
+                <Input
+                  id="editRir"
+                  value={editingExercise.rir}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, rir: e.target.value })}
+                  placeholder="e.g., 2-3"
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editVideoUrl">YouTube Video URL</Label>
+                <Input
+                  id="editVideoUrl"
+                  value={editingExercise.video_url}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, video_url: e.target.value })}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editRestSeconds">Rest Between Sets (seconds)</Label>
+                <Input
+                  id="editRestSeconds"
+                  type="number"
+                  min={0}
+                  value={editingExercise.rest_seconds}
+                  onChange={(e) =>
+                    setEditingExercise({ ...editingExercise, rest_seconds: parseInt(e.target.value) || 60 })
+                  }
+                  placeholder="60"
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editNotes">Coach Notes</Label>
+                <Textarea
+                  id="editNotes"
+                  value={editingExercise.notes}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, notes: e.target.value })}
+                  placeholder="Instructions for the athlete..."
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <Button
+                onClick={() => updateExercise.mutate()}
+                disabled={!editingExercise.name || updateExercise.isPending}
+                className="w-full bg-primary hover:bg-primary/90"
+              >
+                {updateExercise.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
