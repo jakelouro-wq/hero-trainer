@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, CalendarOff, Calendar } from "lucide-react";
+import { Plus, Trash2, CalendarOff, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,13 +22,33 @@ import {
 import { useBlockedDates, useAddBlockedDate, useDeleteBlockedDate, DAY_NAMES } from "@/hooks/useBlockedDates";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Client {
+  id: string;
+  full_name: string | null;
+}
 
 const BlockedDatesManager = () => {
   const [open, setOpen] = useState(false);
   const [blockType, setBlockType] = useState<"day" | "date">("day");
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [reason, setReason] = useState("");
+
+  const { data: clients } = useQuery({
+    queryKey: ["clients-for-blocking"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .order("full_name");
+      if (error) throw error;
+      return data as Client[];
+    },
+  });
 
   const { data: blockedDates, isLoading } = useBlockedDates();
   const addBlocked = useAddBlockedDate();
@@ -37,6 +57,10 @@ const BlockedDatesManager = () => {
 
   const handleSubmit = async () => {
     try {
+      if (!selectedClientId) {
+        toast({ title: "Select a client", variant: "destructive" });
+        return;
+      }
       if (blockType === "day" && !selectedDay) {
         toast({ title: "Select a day", variant: "destructive" });
         return;
@@ -49,6 +73,7 @@ const BlockedDatesManager = () => {
       await addBlocked.mutateAsync({
         blocked_day_of_week: blockType === "day" ? parseInt(selectedDay) : undefined,
         blocked_date: blockType === "date" ? selectedDate : undefined,
+        client_id: selectedClientId,
         reason: reason || undefined,
       });
 
@@ -56,10 +81,17 @@ const BlockedDatesManager = () => {
       setOpen(false);
       setSelectedDay("");
       setSelectedDate("");
+      setSelectedClientId("");
       setReason("");
     } catch (error) {
       toast({ title: "Error adding blocked date", variant: "destructive" });
     }
+  };
+
+  const getClientName = (clientId: string | null) => {
+    if (!clientId) return "All Clients";
+    const client = clients?.find((c) => c.id === clientId);
+    return client?.full_name || "Unknown Client";
   };
 
   const handleDelete = async (id: string) => {
@@ -100,6 +132,22 @@ const BlockedDatesManager = () => {
               </DialogHeader>
 
               <div className="space-y-4 pt-4">
+                <div>
+                  <Label>Client</Label>
+                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select a client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients?.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.full_name || "Unnamed Client"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <RadioGroup value={blockType} onValueChange={(v) => setBlockType(v as "day" | "date")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="day" id="day" />
@@ -182,9 +230,11 @@ const BlockedDatesManager = () => {
                           <p className="font-medium">
                             Every {DAY_NAMES[blocked.blocked_day_of_week!]}
                           </p>
-                          {blocked.reason && (
-                            <p className="text-xs text-muted-foreground">{blocked.reason}</p>
-                          )}
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {getClientName(blocked.client_id)}
+                            {blocked.reason && ` • ${blocked.reason}`}
+                          </p>
                         </div>
                       </div>
                       <Button
@@ -219,9 +269,11 @@ const BlockedDatesManager = () => {
                           <p className="font-medium">
                             {format(new Date(blocked.blocked_date!), "MMMM d, yyyy")}
                           </p>
-                          {blocked.reason && (
-                            <p className="text-xs text-muted-foreground">{blocked.reason}</p>
-                          )}
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {getClientName(blocked.client_id)}
+                            {blocked.reason && ` • ${blocked.reason}`}
+                          </p>
                         </div>
                       </div>
                       <Button
