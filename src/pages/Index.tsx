@@ -144,13 +144,18 @@ const Index = () => {
                 subtext="Complete"
                 delay={700}
               />
-              <StatsCard
-                icon={TrendingUp}
-                label="PR's Hit"
-                value="0"
-                subtext="All time"
-                delay={800}
-              />
+              <div 
+                onClick={() => navigate("/records")}
+                className="cursor-pointer transition-transform hover:scale-105"
+              >
+                <StatsCard
+                  icon={TrendingUp}
+                  label="Records"
+                  value="View"
+                  subtext="Your PRs"
+                  delay={800}
+                />
+              </div>
             </div>
 
             {/* Upcoming */}
