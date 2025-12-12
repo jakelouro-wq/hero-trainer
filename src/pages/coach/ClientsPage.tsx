@@ -228,7 +228,8 @@ const ClientsPage = () => {
               return (
                 <Card
                   key={client.id}
-                  className="bg-card border-border"
+                  className="bg-card border-border cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => navigate(`/coach/clients/${client.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -259,7 +260,8 @@ const ClientsPage = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedClient(client.id);
                           setIsAssignOpen(true);
                         }}
