@@ -10,10 +10,12 @@ import {
   Image as ImageIcon, 
   Trophy,
   MoreHorizontal,
-  Smile
+  Smile,
+  X
 } from "lucide-react";
 import { useCommunityPosts, useCreatePost, useLikePost, useAddComment, useAllProfiles } from "@/hooks/useCommunity";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -30,17 +32,73 @@ const CommunityPage = () => {
   const [mentionSearch, setMentionSearch] = useState("");
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be less than 5MB");
+        return;
+      }
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    if (!user?.id) return null;
+    
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from("community-images")
+      .upload(fileName, file);
+    
+    if (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from("community-images")
+      .getPublicUrl(fileName);
+    
+    return publicUrl;
+  };
 
   const handlePostSubmit = async () => {
-    if (!newPost.trim()) return;
+    if (!newPost.trim() && !selectedImage) return;
 
+    setIsUploading(true);
     try {
-      await createPost.mutateAsync({ content: newPost });
+      let imageUrl: string | undefined;
+      
+      if (selectedImage) {
+        imageUrl = (await uploadImage(selectedImage)) || undefined;
+      }
+      
+      await createPost.mutateAsync({ content: newPost, image_url: imageUrl });
       setNewPost("");
+      clearImage();
       toast.success("Post shared!");
     } catch (error) {
       toast.error("Failed to create post");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -174,9 +232,38 @@ const CommunityPage = () => {
                 </div>
               )}
 
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="relative mt-2 inline-block">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-h-40 rounded-lg object-cover"
+                  />
+                  <button
+                    onClick={clearImage}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mt-2">
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     <ImageIcon className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="sm" className="text-muted-foreground">
@@ -188,11 +275,11 @@ const CommunityPage = () => {
                 </div>
                 <Button
                   onClick={handlePostSubmit}
-                  disabled={!newPost.trim() || createPost.isPending}
+                  disabled={(!newPost.trim() && !selectedImage) || createPost.isPending || isUploading}
                   className="bg-primary hover:bg-primary/90"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Post
+                  {isUploading ? "Uploading..." : "Post"}
                 </Button>
               </div>
             </div>
