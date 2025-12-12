@@ -49,6 +49,36 @@ export type Database = {
           },
         ]
       }
+      exercise_library: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          instructions: string | null
+          name: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instructions?: string | null
+          name: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instructions?: string | null
+          name?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       exercise_logs: {
         Row: {
           completed_at: string
