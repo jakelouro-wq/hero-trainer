@@ -52,7 +52,7 @@ const BadgesPage = () => {
   }, {} as Record<string, typeof allBadges>);
 
   const categoryLabels: Record<string, string> = {
-    streak: "Streak Achievements",
+    streak: "Weekly Consistency",
     weight: "Weight Lifted Milestones",
     workouts: "Workout Completions",
     special: "Special Awards",
@@ -87,7 +87,7 @@ const BadgesPage = () => {
           <div className="card-gradient rounded-xl p-4 border border-border text-center">
             <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">{stats?.currentStreak || 0}</p>
-            <p className="text-xs text-muted-foreground">Day Streak</p>
+            <p className="text-xs text-muted-foreground">Week Streak</p>
           </div>
           <div className="card-gradient rounded-xl p-4 border border-border text-center">
             <Dumbbell className="w-8 h-8 text-primary mx-auto mb-2" />
@@ -173,7 +173,7 @@ const BadgesPage = () => {
                         <p className="text-xs text-muted-foreground text-center mt-1">
                           {category === "weight" && `${stats?.totalWeightLifted?.toLocaleString() || 0} / ${badge.threshold.toLocaleString()} lbs`}
                           {category === "workouts" && `${stats?.totalWorkouts || 0} / ${badge.threshold} workouts`}
-                          {category === "streak" && `${stats?.currentStreak || 0} / ${badge.threshold} days`}
+                          {category === "streak" && `${stats?.currentStreak || 0} / ${badge.threshold} weeks`}
                         </p>
                       </div>
                     )}
