@@ -13,6 +13,8 @@ import ProgramsPage from "./pages/coach/ProgramsPage";
 import ProgramDetailPage from "./pages/coach/ProgramDetailPage";
 import ClientsPage from "./pages/coach/ClientsPage";
 import ExercisesPage from "./pages/coach/ExercisesPage";
+import BadgesPage from "./pages/BadgesPage";
+import CommunityPage from "./pages/CommunityPage";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +59,8 @@ const AppRoutes = () => (
     <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/workout/:id" element={<ProtectedRoute><Workout /></ProtectedRoute>} />
+    <Route path="/badges" element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+    <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
     <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
     <Route path="/coach/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
     <Route path="/coach/programs/:id" element={<ProtectedRoute><ProgramDetailPage /></ProtectedRoute>} />
