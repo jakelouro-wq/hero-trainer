@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
+import { useBlockedDates, isDateBlocked } from "@/hooks/useBlockedDates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Users, Calendar, Plus, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 
 const ClientsPage = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const ClientsPage = () => {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
-
+  const { data: blockedDates } = useBlockedDates();
   const { data: clients, isLoading: isLoadingClients } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -103,26 +104,45 @@ const ClientsPage = () => {
         .single();
 
       if (program && program.workout_templates) {
-        // Schedule all workouts for the client
+        // Schedule all workouts for the client, respecting blocked dates
         const startDateObj = new Date(startDate);
         const userWorkouts: { user_id: string; workout_template_id: string; scheduled_date: string }[] = [];
 
-        for (let week = 0; week < program.duration_weeks; week++) {
-          const weekWorkouts = program.workout_templates.filter(
-            (w: any) => w.week_number === week + 1
-          );
+        // Helper to find next available date
+        const findNextAvailableDate = (date: Date): Date => {
+          let checkDate = new Date(date);
+          // Max 30 days of searching to prevent infinite loops
+          for (let i = 0; i < 30; i++) {
+            if (!isDateBlocked(checkDate, blockedDates || [], selectedClient)) {
+              return checkDate;
+            }
+            checkDate = addDays(checkDate, 1);
+          }
+          return date; // Fallback to original date if no available found
+        };
 
-          weekWorkouts.forEach((workout: any) => {
-            const dayOffset = (week * 7) + (workout.day_number - 1);
-            const workoutDate = new Date(startDateObj);
-            workoutDate.setDate(workoutDate.getDate() + dayOffset);
+        let currentDate = new Date(startDateObj);
+        
+        // Sort workouts by week and day number
+        const sortedWorkouts = [...program.workout_templates].sort((a: any, b: any) => {
+          if (a.week_number !== b.week_number) {
+            return a.week_number - b.week_number;
+          }
+          return a.day_number - b.day_number;
+        });
 
-            userWorkouts.push({
-              user_id: selectedClient,
-              workout_template_id: workout.id,
-              scheduled_date: format(workoutDate, "yyyy-MM-dd"),
-            });
+        for (const workout of sortedWorkouts as any[]) {
+          // Find the next available date that isn't blocked
+          currentDate = findNextAvailableDate(currentDate);
+
+          userWorkouts.push({
+            user_id: selectedClient,
+            workout_template_id: workout.id,
+            scheduled_date: format(currentDate, "yyyy-MM-dd"),
           });
+
+          // Move to the next day for the next workout
+          currentDate = addDays(currentDate, 1);
         }
 
         if (userWorkouts.length > 0) {
