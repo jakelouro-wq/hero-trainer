@@ -49,6 +49,7 @@ const ProgramDetailPage = () => {
     video_url: string;
     rest_seconds: number;
     rir: string;
+    superset_group: string;
   } | null>(null);
   const [newWorkout, setNewWorkout] = useState({
     title: "",
@@ -65,6 +66,7 @@ const ProgramDetailPage = () => {
     video_url: "",
     rest_seconds: 60,
     rir: "",
+    superset_group: "",
   });
 
   const { data: program, isLoading } = useQuery({
@@ -173,6 +175,7 @@ const ProgramDetailPage = () => {
         video_url: newExercise.video_url || null,
         rest_seconds: newExercise.rest_seconds || 60,
         rir: newExercise.rir || null,
+        superset_group: newExercise.superset_group || null,
         workout_template_id: selectedWorkout,
         order_index: existingExercises.length,
       }).select().single();
@@ -192,6 +195,7 @@ const ProgramDetailPage = () => {
         video_url: "",
         rest_seconds: 60,
         rir: "",
+        superset_group: "",
       });
       toast.success("Exercise added");
     },
@@ -229,6 +233,7 @@ const ProgramDetailPage = () => {
           video_url: editingExercise.video_url || null,
           rest_seconds: editingExercise.rest_seconds || 60,
           rir: editingExercise.rir || null,
+          superset_group: editingExercise.superset_group || null,
         })
         .eq("id", editingExercise.id);
 
@@ -256,6 +261,7 @@ const ProgramDetailPage = () => {
       video_url: exercise.video_url || "",
       rest_seconds: exercise.rest_seconds || 60,
       rir: exercise.rir || "",
+      superset_group: exercise.superset_group || "",
     });
     setIsEditExerciseDialogOpen(true);
   };
@@ -372,6 +378,11 @@ const ProgramDetailPage = () => {
                               className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
                             >
                               <div className="flex items-center gap-2">
+                                {exercise.superset_group && (
+                                  <span className="text-xs font-bold text-primary bg-primary/20 px-1.5 py-0.5 rounded">
+                                    {exercise.superset_group}
+                                  </span>
+                                )}
                                 <span className="text-xs text-muted-foreground w-4">
                                   {index + 1}.
                                 </span>
@@ -603,6 +614,28 @@ const ProgramDetailPage = () => {
               />
             </div>
             <div>
+              <Label htmlFor="supersetGroup">Superset/Circuit Group</Label>
+              <Select
+                value={newExercise.superset_group || "none"}
+                onValueChange={(v) => setNewExercise({ ...newExercise, superset_group: v === "none" ? "" : v })}
+              >
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="No grouping" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="none">No grouping</SelectItem>
+                  <SelectItem value="A">Group A</SelectItem>
+                  <SelectItem value="B">Group B</SelectItem>
+                  <SelectItem value="C">Group C</SelectItem>
+                  <SelectItem value="D">Group D</SelectItem>
+                  <SelectItem value="E">Group E</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Exercises with the same group are performed together as a superset/circuit
+              </p>
+            </div>
+            <div>
               <Label htmlFor="notes">Coach Notes</Label>
               <Textarea
                 id="notes"
@@ -710,6 +743,28 @@ const ProgramDetailPage = () => {
                   placeholder="60"
                   className="bg-secondary border-border"
                 />
+              </div>
+              <div>
+                <Label htmlFor="editSupersetGroup">Superset/Circuit Group</Label>
+                <Select
+                  value={editingExercise.superset_group || "none"}
+                  onValueChange={(v) => setEditingExercise({ ...editingExercise, superset_group: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="No grouping" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="none">No grouping</SelectItem>
+                    <SelectItem value="A">Group A</SelectItem>
+                    <SelectItem value="B">Group B</SelectItem>
+                    <SelectItem value="C">Group C</SelectItem>
+                    <SelectItem value="D">Group D</SelectItem>
+                    <SelectItem value="E">Group E</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exercises with the same group are performed together
+                </p>
               </div>
               <div>
                 <Label htmlFor="editNotes">Coach Notes</Label>
