@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,17 +15,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Calendar, 
   Clock, 
-  Mail, 
   User, 
   Dumbbell,
   CheckCircle2,
   XCircle,
   GripVertical,
-  Shield
+  Shield,
+  Trophy,
+  TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -38,6 +40,7 @@ const ClientDetailPage = () => {
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [newDate, setNewDate] = useState("");
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("calendar");
 
   // Fetch client profile
   const { data: client, isLoading: isLoadingClient } = useQuery({
@@ -119,6 +122,67 @@ const ClientDetailPage = () => {
     },
     enabled: isCoach && !!clientId,
   });
+
+  // Fetch exercise logs (PRs) for this client
+  const { data: exerciseLogs } = useQuery({
+    queryKey: ["client-exercise-logs", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exercise_logs")
+        .select("*, exercises(name)")
+        .eq("user_id", clientId)
+        .order("completed_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: isCoach && !!clientId && activeTab === "performance",
+  });
+
+  // Calculate PRs from exercise logs
+  const personalRecords = useMemo(() => {
+    if (!exerciseLogs) return [];
+
+    const prMap = new Map<string, { 
+      exerciseName: string; 
+      maxWeight: number; 
+      maxReps: number;
+      prDate: string;
+      totalSets: number;
+    }>();
+
+    exerciseLogs.forEach((log) => {
+      const exerciseName = log.exercises?.name || "Unknown Exercise";
+      const weight = parseFloat(log.weight || "0") || 0;
+      const reps = parseInt(log.reps || "0") || 0;
+
+      const existing = prMap.get(exerciseName);
+      if (!existing) {
+        prMap.set(exerciseName, {
+          exerciseName,
+          maxWeight: weight,
+          maxReps: reps,
+          prDate: log.completed_at,
+          totalSets: 1,
+        });
+      } else {
+        existing.totalSets += 1;
+        // Update PR if this weight is higher
+        if (weight > existing.maxWeight) {
+          existing.maxWeight = weight;
+          existing.prDate = log.completed_at;
+        }
+        // Track max reps at any weight
+        if (reps > existing.maxReps) {
+          existing.maxReps = reps;
+        }
+      }
+    });
+
+    return Array.from(prMap.values()).sort((a, b) => 
+      a.exerciseName.localeCompare(b.exerciseName)
+    );
+  }, [exerciseLogs]);
 
   // Reschedule workout mutation
   const rescheduleWorkout = useMutation({
@@ -311,146 +375,219 @@ const ClientDetailPage = () => {
           </Card>
         )}
 
-        {/* Workout Calendar */}
-        <div className="space-y-6">
-          {/* Missed Workouts */}
-          {pastIncompleteWorkouts.length > 0 && (
-            <Card className="bg-card border-border border-destructive/50">
+        {/* Tabs for Calendar and Performance */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Performance
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="space-y-6">
+            {/* Missed Workouts */}
+            {pastIncompleteWorkouts.length > 0 && (
+              <Card className="bg-card border-border border-destructive/50">
+                <CardHeader>
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-destructive" />
+                    Missed Workouts ({pastIncompleteWorkouts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {pastIncompleteWorkouts.map((workout) => (
+                      <div
+                        key={workout.id}
+                        className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-destructive/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <GripVertical className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {workout.workout_templates?.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Scheduled: {format(new Date(workout.scheduled_date), "MMM d, yyyy")}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReschedule(workout)}
+                        >
+                          Reschedule
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Upcoming Workouts */}
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
-                  <XCircle className="w-5 h-5 text-destructive" />
-                  Missed Workouts ({pastIncompleteWorkouts.length})
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Upcoming Workouts ({upcomingWorkouts.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {pastIncompleteWorkouts.map((workout) => (
-                    <div
-                      key={workout.id}
-                      className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-destructive/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {workout.workout_templates?.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Scheduled: {format(new Date(workout.scheduled_date), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleReschedule(workout)}
+                {upcomingWorkouts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No upcoming workouts scheduled</p>
+                ) : (
+                  <div className="space-y-2">
+                    {upcomingWorkouts.slice(0, 10).map((workout) => (
+                      <div
+                        key={workout.id}
+                        className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
                       >
-                        Reschedule
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="flex items-center gap-3">
+                          <GripVertical className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {workout.workout_templates?.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(workout.scheduled_date), "EEEE, MMM d, yyyy")}
+                              {workout.workout_templates?.duration && (
+                                <span> • {workout.workout_templates.duration}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleReschedule(workout)}
+                        >
+                          Move
+                        </Button>
+                      </div>
+                    ))}
+                    {upcomingWorkouts.length > 10 && (
+                      <p className="text-sm text-muted-foreground text-center pt-2">
+                        + {upcomingWorkouts.length - 10} more workouts
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
 
-          {/* Upcoming Workouts */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Upcoming Workouts ({upcomingWorkouts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {upcomingWorkouts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No upcoming workouts scheduled</p>
-              ) : (
-                <div className="space-y-2">
-                  {upcomingWorkouts.slice(0, 10).map((workout) => (
-                    <div
-                      key={workout.id}
-                      className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {workout.workout_templates?.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(workout.scheduled_date), "EEEE, MMM d, yyyy")}
-                            {workout.workout_templates?.duration && (
-                              <span> • {workout.workout_templates.duration}</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleReschedule(workout)}
+            {/* Completed Workouts */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  Completed Workouts ({completedWorkouts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {completedWorkouts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No workouts completed yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {completedWorkouts.slice(-10).reverse().map((workout) => (
+                      <div
+                        key={workout.id}
+                        className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
                       >
-                        Move
-                      </Button>
-                    </div>
-                  ))}
-                  {upcomingWorkouts.length > 10 && (
-                    <p className="text-sm text-muted-foreground text-center pt-2">
-                      + {upcomingWorkouts.length - 10} more workouts
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Completed Workouts */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-                Completed Workouts ({completedWorkouts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {completedWorkouts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No workouts completed yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {completedWorkouts.slice(-10).reverse().map((workout) => (
-                    <div
-                      key={workout.id}
-                      className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {workout.workout_templates?.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Completed: {workout.completed_at 
-                              ? format(new Date(workout.completed_at), "MMM d, yyyy")
-                              : format(new Date(workout.scheduled_date), "MMM d, yyyy")}
-                            {workout.duration_seconds && (
-                              <span> • {Math.floor(workout.duration_seconds / 60)}m</span>
-                            )}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {workout.workout_templates?.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Completed: {workout.completed_at 
+                                ? format(new Date(workout.completed_at), "MMM d, yyyy")
+                                : format(new Date(workout.scheduled_date), "MMM d, yyyy")}
+                              {workout.duration_seconds && (
+                                <span> • {Math.floor(workout.duration_seconds / 60)}m</span>
+                              )}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {completedWorkouts.length > 10 && (
-                    <p className="text-sm text-muted-foreground text-center pt-2">
-                      Showing last 10 of {completedWorkouts.length} completed workouts
+                    ))}
+                    {completedWorkouts.length > 10 && (
+                      <p className="text-sm text-muted-foreground text-center pt-2">
+                        Showing last 10 of {completedWorkouts.length} completed workouts
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-6">
+            {/* Personal Records */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  Personal Records ({personalRecords.length} exercises)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {personalRecords.length === 0 ? (
+                  <div className="text-center py-8">
+                    <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No exercise data logged yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      PRs will appear here once the client logs exercises
                     </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {personalRecords.map((pr) => (
+                      <div
+                        key={pr.exerciseName}
+                        className="p-4 bg-secondary/50 rounded-lg border border-border"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-foreground">
+                            {pr.exerciseName}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {pr.totalSets} sets logged
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Max Weight</p>
+                            <p className="text-lg font-bold text-primary">
+                              {pr.maxWeight > 0 ? `${pr.maxWeight} lbs` : "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Max Reps</p>
+                            <p className="text-lg font-bold text-foreground">
+                              {pr.maxReps > 0 ? pr.maxReps : "—"}
+                            </p>
+                          </div>
+                        </div>
+                        {pr.maxWeight > 0 && (
+                          <p className="text-xs text-muted-foreground mt-3">
+                            PR set on {format(new Date(pr.prDate), "MMM d, yyyy")}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Reschedule Dialog */}
