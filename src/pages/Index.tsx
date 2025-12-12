@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import StatsCard from "@/components/StatsCard";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import ProgressRing from "@/components/ProgressRing";
+import QuickAddActivity from "@/components/QuickAddActivity";
 import { Button } from "@/components/ui/button";
 import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight, Dumbbell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,7 +44,11 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Weekly Calendar */}
+          {/* Weekly Calendar with Quick Add */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">This Week</h2>
+            <QuickAddActivity />
+          </div>
           <WeeklyCalendar />
         </div>
       </section>

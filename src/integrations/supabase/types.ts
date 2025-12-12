@@ -245,6 +245,36 @@ export type Database = {
           },
         ]
       }
+      manual_activities: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          activity_type: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_comments: {
         Row: {
           content: string
