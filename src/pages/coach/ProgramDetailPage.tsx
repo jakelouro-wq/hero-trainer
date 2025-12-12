@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,13 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video } from "lucide-react";
 import { toast } from "sonner";
+import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isCoach, isLoading: isCheckingAccess } = useCoachAccess();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
@@ -131,6 +134,23 @@ const ProgramDetailPage = () => {
 
       const existingExercises = workouts?.find((w) => w.id === selectedWorkout)?.exercises || [];
       
+      // First, save to exercise library if not already exists
+      const { data: existingLibraryExercise } = await supabase
+        .from("exercise_library")
+        .select("id")
+        .ilike("name", newExercise.name)
+        .maybeSingle();
+
+      if (!existingLibraryExercise) {
+        await supabase.from("exercise_library").insert({
+          name: newExercise.name,
+          video_url: newExercise.video_url || null,
+          instructions: newExercise.notes || null,
+          created_by: user?.id,
+        });
+      }
+
+      // Then create the exercise in the workout
       const { data, error } = await supabase.from("exercises").insert({
         name: newExercise.name,
         sets: newExercise.sets,
@@ -430,12 +450,18 @@ const ProgramDetailPage = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="exerciseName">Exercise Name</Label>
-              <Input
-                id="exerciseName"
+              <ExerciseAutocomplete
                 value={newExercise.name}
-                onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
+                onChange={(value) => setNewExercise({ ...newExercise, name: value })}
+                onSelect={(exercise) => {
+                  setNewExercise({
+                    ...newExercise,
+                    name: exercise.name,
+                    video_url: exercise.video_url || newExercise.video_url,
+                    notes: exercise.instructions || newExercise.notes,
+                  });
+                }}
                 placeholder="e.g., Bench Press"
-                className="bg-secondary border-border"
               />
             </div>
             <div className="grid grid-cols-3 gap-4">
