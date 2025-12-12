@@ -16,7 +16,7 @@ export const ACTIVITY_TYPES = [
   { value: "tennis", label: "Tennis", icon: "🎾" },
   { value: "padel", label: "Padel", icon: "🎾" },
   { value: "surfing", label: "Surfing", icon: "🏄" },
-  { value: "cardio", label: "Cardio", icon: "❤️" },
+  { value: "rucking", label: "Rucking", icon: "🎒" },
   { value: "intervals", label: "Intervals", icon: "⚡" },
   { value: "golf", label: "Golf", icon: "⛳" },
   { value: "walk", label: "Walk", icon: "🚶" },
