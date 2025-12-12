@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_dates: {
+        Row: {
+          blocked_date: string | null
+          blocked_day_of_week: number | null
+          client_id: string | null
+          coach_id: string
+          created_at: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_date?: string | null
+          blocked_day_of_week?: number | null
+          client_id?: string | null
+          coach_id: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_date?: string | null
+          blocked_day_of_week?: number | null
+          client_id?: string | null
+          coach_id?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       client_programs: {
         Row: {
           assigned_by: string | null

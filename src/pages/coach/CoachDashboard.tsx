@@ -4,6 +4,7 @@ import { useCoachAccess } from "@/hooks/useCoachAccess";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Dumbbell, Calendar, FolderOpen, ArrowLeft, Shield } from "lucide-react";
+import BlockedDatesManager from "@/components/BlockedDatesManager";
 
 const CoachDashboard = () => {
   const navigate = useNavigate();
@@ -84,7 +85,7 @@ const CoachDashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {menuItems.map((item) => (
             <Card
@@ -106,6 +107,9 @@ const CoachDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Blocked Dates Section */}
+        <BlockedDatesManager />
       </main>
     </div>
   );
