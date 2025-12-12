@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer, ChevronDown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer, ChevronDown, Trophy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import RestTimer from "./RestTimer";
+import { usePersonalRecords } from "@/hooks/usePersonalRecords";
 
 interface SetData {
   reps: string;
@@ -55,6 +56,7 @@ const ExerciseGroupCard = ({
   onToggleExpand,
   onComplete,
 }: ExerciseGroupCardProps) => {
+  const { getPRForExercise } = usePersonalRecords();
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>(() => {
     const initial: Record<string, ExerciseState> = {};
     exercises.forEach((ex) => {
@@ -174,6 +176,23 @@ const ExerciseGroupCard = ({
     const videoId = exercise.videoUrl ? getYouTubeId(exercise.videoUrl) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
     const allSetsCompleted = state.setsData.every((set) => set.completed);
+    const currentPR = getPRForExercise(exercise.id);
+
+    // Check if any completed set is a new PR
+    const getSetPRStatus = (set: SetData) => {
+      if (!set.completed) return { isWeightPR: false, isRepsPR: false };
+      const weight = parseFloat(set.weight) || 0;
+      const reps = parseInt(set.reps) || 0;
+      
+      if (!currentPR) {
+        return { isWeightPR: weight > 0, isRepsPR: false };
+      }
+      
+      return {
+        isWeightPR: weight > currentPR.maxWeight,
+        isRepsPR: false, // Focus on weight PRs for now
+      };
+    };
 
     return (
       <div key={exercise.id} className="mb-6 last:mb-0">
@@ -276,48 +295,68 @@ const ExerciseGroupCard = ({
 
         {/* Set Rows */}
         <div className="space-y-3">
-          {state.setsData.map((set, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground w-8 text-center">
-                {index + 1}
-              </span>
-              <Input
-                type="text"
-                value={set.reps}
-                onChange={(e) => updateSetReps(exercise.id, index, e.target.value)}
-                className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Reps"
-              />
-              <Input
-                type="text"
-                value={set.weight}
-                onChange={(e) => updateSetWeight(exercise.id, index, e.target.value)}
-                className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Lb"
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSetComplete(exercise.id, index);
-                }}
-                className="w-10 h-10 flex items-center justify-center"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    set.completed
-                      ? "border-primary bg-primary"
-                      : "border-primary"
-                  }`}
-                >
-                  {set.completed && (
-                    <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
+          {state.setsData.map((set, index) => {
+            const prStatus = getSetPRStatus(set);
+            const isNewPR = prStatus.isWeightPR;
+            
+            return (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-8 text-center">
+                  {index + 1}
+                </span>
+                <Input
+                  type="text"
+                  value={set.reps}
+                  onChange={(e) => updateSetReps(exercise.id, index, e.target.value)}
+                  className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Reps"
+                />
+                <div className="relative flex-1">
+                  <Input
+                    type="text"
+                    value={set.weight}
+                    onChange={(e) => updateSetWeight(exercise.id, index, e.target.value)}
+                    className={`w-full bg-secondary border-border text-center h-12 text-foreground ${
+                      isNewPR ? "border-yellow-500 ring-1 ring-yellow-500/50" : ""
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="Lb"
+                  />
+                  {isNewPR && (
+                    <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1 animate-bounce">
+                      <Trophy className="w-3 h-3 text-black" />
+                    </div>
                   )}
                 </div>
-              </button>
-            </div>
-          ))}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSetComplete(exercise.id, index);
+                  }}
+                  className="w-10 h-10 flex items-center justify-center"
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      set.completed
+                        ? isNewPR 
+                          ? "border-yellow-500 bg-yellow-500"
+                          : "border-primary bg-primary"
+                        : "border-primary"
+                    }`}
+                  >
+                    {set.completed && (
+                      isNewPR ? (
+                        <Trophy className="w-4 h-4 text-black" />
+                      ) : (
+                        <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
+                      )
+                    )}
+                  </div>
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Add/Remove Set */}

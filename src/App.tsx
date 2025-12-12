@@ -16,6 +16,7 @@ import ClientDetailPage from "./pages/coach/ClientDetailPage";
 import ExercisesPage from "./pages/coach/ExercisesPage";
 import BadgesPage from "./pages/BadgesPage";
 import CommunityPage from "./pages/CommunityPage";
+import PersonalRecordsPage from "./pages/PersonalRecordsPage";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const AppRoutes = () => (
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/workout/:id" element={<ProtectedRoute><Workout /></ProtectedRoute>} />
     <Route path="/badges" element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+    <Route path="/records" element={<ProtectedRoute><PersonalRecordsPage /></ProtectedRoute>} />
     <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
     <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
     <Route path="/coach/programs" element={<ProtectedRoute><ProgramsPage /></ProtectedRoute>} />
