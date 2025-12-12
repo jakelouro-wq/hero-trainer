@@ -105,7 +105,7 @@ const BadgesPage = () => {
       <main className="pt-24 pb-12 container mx-auto px-4">
         {/* Stats Summary */}
         <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-foreground mb-2">Your Achievements</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground mb-2">Trophy Closet</h1>
           <p className="text-muted-foreground">
             {userBadges?.length || 0} of {allBadges?.length || 0} badges earned
           </p>
