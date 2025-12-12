@@ -27,8 +27,10 @@ import {
   GripVertical,
   Shield,
   Trophy,
-  TrendingUp
+  TrendingUp,
+  CalendarOff
 } from "lucide-react";
+import ClientBlockedDates from "@/components/ClientBlockedDates";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 
@@ -375,9 +377,9 @@ const ClientDetailPage = () => {
           </Card>
         )}
 
-        {/* Tabs for Calendar and Performance */}
+        {/* Tabs for Calendar, Performance, and Blocked Dates */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Calendar
@@ -385,6 +387,10 @@ const ClientDetailPage = () => {
             <TabsTrigger value="performance" className="flex items-center gap-2">
               <Trophy className="w-4 h-4" />
               Performance
+            </TabsTrigger>
+            <TabsTrigger value="blocked" className="flex items-center gap-2">
+              <CalendarOff className="w-4 h-4" />
+              Blocked Dates
             </TabsTrigger>
           </TabsList>
 
@@ -586,6 +592,13 @@ const ClientDetailPage = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="blocked">
+            <ClientBlockedDates 
+              clientId={clientId!} 
+              clientName={client.full_name || "This Client"} 
+            />
           </TabsContent>
         </Tabs>
       </main>
