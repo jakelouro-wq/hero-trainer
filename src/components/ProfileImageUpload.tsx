@@ -3,9 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import ImageCropModal from "./ImageCropModal";
 
 interface ProfileImageUploadProps {
   currentImageUrl?: string | null;
@@ -24,6 +24,8 @@ const ProfileImageUpload = ({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
 
   const sizeClasses = {
     sm: "h-12 w-12",
@@ -42,21 +44,20 @@ const ProfileImageUpload = ({
   };
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (blob: Blob) => {
       if (!user?.id) throw new Error("Not authenticated");
 
       setIsUploading(true);
 
-      // Create a unique file name
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/avatar.${fileExt}`;
+      const fileName = `${user.id}/avatar.jpg`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(fileName, file, {
+        .upload(fileName, blob, {
           cacheControl: "3600",
           upsert: true,
+          contentType: "image/jpeg",
         });
 
       if (uploadError) throw uploadError;
@@ -93,6 +94,11 @@ const ProfileImageUpload = ({
     },
   });
 
+  const handleCropComplete = (croppedBlob: Blob) => {
+    uploadMutation.mutate(croppedBlob);
+    setSelectedImageSrc(null);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -109,7 +115,13 @@ const ProfileImageUpload = ({
       return;
     }
 
-    uploadMutation.mutate(file);
+    // Create object URL and open crop modal
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImageSrc(imageUrl);
+    setCropModalOpen(true);
+    
+    // Reset input so same file can be selected again
+    e.target.value = "";
   };
 
   return (
@@ -141,6 +153,19 @@ const ProfileImageUpload = ({
         onChange={handleFileChange}
         className="hidden"
       />
+
+      {selectedImageSrc && (
+        <ImageCropModal
+          open={cropModalOpen}
+          imageSrc={selectedImageSrc}
+          onClose={() => {
+            setCropModalOpen(false);
+            URL.revokeObjectURL(selectedImageSrc);
+            setSelectedImageSrc(null);
+          }}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 };
