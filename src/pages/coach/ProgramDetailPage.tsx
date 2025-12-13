@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image, Repeat } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image, Repeat, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 import ProgramImageUpload from "@/components/ProgramImageUpload";
@@ -478,6 +478,40 @@ const ProgramDetailPage = () => {
     },
   });
 
+  const moveExercise = useMutation({
+    mutationFn: async ({ exerciseId, workoutId, direction }: { exerciseId: string; workoutId: string; direction: 'up' | 'down' }) => {
+      const workout = workouts?.find((w) => w.id === workoutId);
+      if (!workout) throw new Error("Workout not found");
+
+      const exercises = [...(workout.exercises as any[])].sort((a, b) => a.order_index - b.order_index);
+      const currentIndex = exercises.findIndex((e) => e.id === exerciseId);
+      
+      if (direction === 'up' && currentIndex <= 0) throw new Error("Already at top");
+      if (direction === 'down' && currentIndex >= exercises.length - 1) throw new Error("Already at bottom");
+
+      const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      const currentExercise = exercises[currentIndex];
+      const swapExercise = exercises[swapIndex];
+
+      // Swap order_index values
+      await supabase
+        .from("exercises")
+        .update({ order_index: swapExercise.order_index })
+        .eq("id", currentExercise.id);
+
+      await supabase
+        .from("exercises")
+        .update({ order_index: currentExercise.order_index })
+        .eq("id", swapExercise.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+    },
+    onError: (error) => {
+      toast.error("Failed to move exercise: " + error.message);
+    },
+  });
+
   const openEditExercise = (exercise: any) => {
     setEditingExercise({
       id: exercise.id,
@@ -814,7 +848,29 @@ const ProgramDetailPage = () => {
                                         </p>
                                       )}
                                     </div>
-                                    <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
+                                    <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-0.5">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          moveExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id, direction: 'up' });
+                                        }}
+                                        disabled={idx === 0}
+                                        className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                      >
+                                        <ChevronUp className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          moveExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id, direction: 'down' });
+                                        }}
+                                        disabled={idx === arr.length - 1}
+                                        className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                      >
+                                        <ChevronDown className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                    <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-0.5">
                                       {isInSuperset && (
                                         <button
                                           onClick={(e) => {
