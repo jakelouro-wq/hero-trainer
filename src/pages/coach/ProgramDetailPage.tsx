@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 import ProgramImageUpload from "@/components/ProgramImageUpload";
@@ -292,6 +292,84 @@ const ProgramDetailPage = () => {
     },
     onError: (error) => {
       toast.error("Failed to duplicate workout: " + error.message);
+    },
+  });
+
+  const repeatWorkout = useMutation({
+    mutationFn: async (workoutId: string) => {
+      const workoutToRepeat = workouts?.find((w) => w.id === workoutId);
+      if (!workoutToRepeat || !program) throw new Error("Workout not found");
+
+      const sourceWeek = workoutToRepeat.week_number || 1;
+      const dayNumber = workoutToRepeat.day_number || 1;
+      const totalWeeks = program.duration_weeks;
+      
+      // Get weeks that need the workout (all weeks after current that don't have a workout on this day)
+      const weeksToCreate: number[] = [];
+      for (let week = sourceWeek + 1; week <= totalWeeks; week++) {
+        const existingWorkout = workouts?.find(
+          (w) => w.week_number === week && w.day_number === dayNumber
+        );
+        if (!existingWorkout) {
+          weeksToCreate.push(week);
+        }
+      }
+
+      if (weeksToCreate.length === 0) {
+        throw new Error("All remaining weeks already have workouts on this day");
+      }
+
+      const exercises = workoutToRepeat.exercises as any[];
+      
+      // Create workouts for each remaining week
+      for (const week of weeksToCreate) {
+        const { data: newWorkoutData, error: workoutError } = await supabase
+          .from("workout_templates")
+          .insert({
+            title: workoutToRepeat.title,
+            subtitle: workoutToRepeat.subtitle,
+            duration: workoutToRepeat.duration,
+            focus: workoutToRepeat.focus,
+            program_id: id,
+            week_number: week,
+            day_number: dayNumber,
+          })
+          .select()
+          .single();
+
+        if (workoutError) throw workoutError;
+
+        if (exercises && exercises.length > 0) {
+          const exerciseCopies = exercises.map((ex) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            notes: ex.notes,
+            video_url: ex.video_url,
+            rest_seconds: ex.rest_seconds,
+            rir: ex.rir,
+            superset_group: ex.superset_group,
+            order_index: ex.order_index,
+            workout_template_id: newWorkoutData.id,
+          }));
+
+          const { error: exercisesError } = await supabase
+            .from("exercises")
+            .insert(exerciseCopies);
+
+          if (exercisesError) throw exercisesError;
+        }
+      }
+
+      return weeksToCreate.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      toast.success(`Workout repeated for ${count} remaining week${count > 1 ? 's' : ''}`);
+    },
+    onError: (error) => {
+      toast.error("Failed to repeat workout: " + error.message);
     },
   });
 
@@ -647,6 +725,10 @@ const ProgramDetailPage = () => {
                                 <DropdownMenuItem onClick={() => duplicateWorkout.mutate(workout.id)}>
                                   <Copy className="w-4 h-4 mr-2" />
                                   Copy
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => repeatWorkout.mutate(workout.id)}>
+                                  <Repeat className="w-4 h-4 mr-2" />
+                                  Repeat for remaining weeks
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => deleteWorkout.mutate(workout.id)}
