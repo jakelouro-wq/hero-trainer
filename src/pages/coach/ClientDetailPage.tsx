@@ -29,9 +29,11 @@ import {
   Trophy,
   TrendingUp,
   CalendarOff,
-  Trash2
+  Trash2,
+  MessageSquare
 } from "lucide-react";
 import ClientBlockedDates from "@/components/ClientBlockedDates";
+import MessagingPanel from "@/components/MessagingPanel";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 
@@ -44,6 +46,7 @@ const ClientDetailPage = () => {
   const [newDate, setNewDate] = useState("");
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("calendar");
+  const [isMessagingOpen, setIsMessagingOpen] = useState(false);
 
   // Fetch client profile
   const { data: client, isLoading: isLoadingClient } = useQuery({
@@ -285,24 +288,42 @@ const ClientDetailPage = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/coach/clients")}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">
-                {client.full_name || "Unnamed Client"}
-              </h1>
-              <p className="text-sm text-muted-foreground">Client Details & Calendar</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/coach/clients")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">
+                  {client.full_name || "Unnamed Client"}
+                </h1>
+                <p className="text-sm text-muted-foreground">Client Details & Calendar</p>
+              </div>
             </div>
+            <Button
+              onClick={() => setIsMessagingOpen(true)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Message Athlete
+            </Button>
           </div>
         </div>
       </header>
+
+      {/* Messaging Panel */}
+      <MessagingPanel
+        isOpen={isMessagingOpen}
+        onClose={() => setIsMessagingOpen(false)}
+        recipientId={clientId || ""}
+        recipientName={client.full_name || "Athlete"}
+        recipientAvatar={client.avatar_url}
+      />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Client Info Cards */}
