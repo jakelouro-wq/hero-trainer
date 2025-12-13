@@ -12,11 +12,6 @@ export async function compressImage(
 ): Promise<Blob> {
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-  // If already under size limit and it's a JPEG, return as-is
-  if (file.size <= maxSizeBytes && file.type === "image/jpeg") {
-    return file;
-  }
-
   return new Promise((resolve, reject) => {
     const img = new Image();
     const canvas = document.createElement("canvas");
