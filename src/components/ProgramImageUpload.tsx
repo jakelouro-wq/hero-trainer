@@ -27,12 +27,11 @@ const ProgramImageUpload = ({
   const displayImage = currentImageUrl || coachAvatarUrl;
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (file: File | Blob) => {
       setIsUploading(true);
 
-      // Create a unique file name
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${programId}/cover.${fileExt}`;
+      // Always use .jpg for compressed images
+      const fileName = `${programId}/cover.jpg`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
@@ -40,6 +39,7 @@ const ProgramImageUpload = ({
         .upload(fileName, file, {
           cacheControl: "3600",
           upsert: true,
+          contentType: "image/jpeg",
         });
 
       if (uploadError) throw uploadError;
@@ -109,14 +109,10 @@ const ProgramImageUpload = ({
     e.target.value = "";
 
     try {
-      // Auto-compress if over 5MB
-      let processedFile: File | Blob = file;
-      if (file.size > 5 * 1024 * 1024) {
-        toast.info("Compressing large image...");
-        processedFile = await compressImage(file);
-      }
-
-      uploadMutation.mutate(processedFile as File);
+      // Always compress images to ensure consistent format and size
+      toast.info("Processing image...");
+      const processedFile = await compressImage(file);
+      uploadMutation.mutate(processedFile);
     } catch (error) {
       toast.error("Failed to process image");
       console.error("Image compression error:", error);
