@@ -682,19 +682,20 @@ const ProgramDetailPage = () => {
                             {exercises.map((exercise, idx, arr) => {
                               const label = getExerciseLabel(arr, idx);
                               const isInSuperset = exercise.superset_group && arr.filter(e => e.superset_group === exercise.superset_group).length > 1;
-                              const prevInSameGroup = idx > 0 && arr[idx - 1].superset_group === exercise.superset_group;
+                              // Only consider them in the same group if BOTH have a superset_group AND they match
+                              const prevInSameGroup = idx > 0 && exercise.superset_group && arr[idx - 1].superset_group === exercise.superset_group;
 
                               return (
                                 <div key={exercise.id}>
                                   {/* Link button between exercises */}
                                   {idx > 0 && !prevInSameGroup && (
-                                    <div className="flex justify-center py-1">
+                                    <div className="flex justify-center py-0.5">
                                       <button
                                         onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
-                                        className="text-xs text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded flex items-center gap-1 border border-primary/30 transition-colors"
+                                        className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
                                       >
-                                        <Link2 className="w-3 h-3" />
-                                        Link as Superset
+                                        <Link2 className="w-2.5 h-2.5" />
+                                        Link
                                       </button>
                                     </div>
                                   )}
