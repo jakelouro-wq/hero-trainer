@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,13 +16,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, Link2, Unlink } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 
@@ -34,10 +39,12 @@ const ProgramDetailPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const [currentWeek, setCurrentWeek] = useState(1);
   const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
   const [isExerciseDialogOpen, setIsExerciseDialogOpen] = useState(false);
   const [isEditExerciseDialogOpen, setIsEditExerciseDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [selectedDayForNewWorkout, setSelectedDayForNewWorkout] = useState<number>(1);
   const [editingExercise, setEditingExercise] = useState<{
     id: string;
     name: string;
@@ -118,7 +125,7 @@ const ProgramDetailPage = () => {
       setNewWorkout({
         title: "",
         subtitle: "",
-        week_number: 1,
+        week_number: currentWeek,
         day_number: 1,
       });
       toast.success("Workout created");
@@ -148,7 +155,6 @@ const ProgramDetailPage = () => {
 
       const existingExercises = workouts?.find((w) => w.id === selectedWorkout)?.exercises || [];
       
-      // First, save to exercise library if not already exists
       const { data: existingLibraryExercise } = await supabase
         .from("exercise_library")
         .select("id")
@@ -164,7 +170,6 @@ const ProgramDetailPage = () => {
         });
       }
 
-      // Then create the exercise in the workout
       const { data, error } = await supabase.from("exercises").insert({
         name: newExercise.name,
         sets: newExercise.sets,
@@ -176,7 +181,7 @@ const ProgramDetailPage = () => {
         rir: newExercise.rir || null,
         superset_group: null,
         workout_template_id: selectedWorkout,
-        order_index: existingExercises.length,
+        order_index: (existingExercises as any[]).length,
       }).select().single();
 
       if (error) throw error;
@@ -219,12 +224,10 @@ const ProgramDetailPage = () => {
 
   const duplicateWorkout = useMutation({
     mutationFn: async (workoutId: string) => {
-      // Find the workout to duplicate
       const workoutToDuplicate = workouts?.find((w) => w.id === workoutId);
       if (!workoutToDuplicate) throw new Error("Workout not found");
 
-      // Create a copy of the workout template
-      const { data: newWorkout, error: workoutError } = await supabase
+      const { data: newWorkoutData, error: workoutError } = await supabase
         .from("workout_templates")
         .insert({
           title: `${workoutToDuplicate.title} (Copy)`,
@@ -240,7 +243,6 @@ const ProgramDetailPage = () => {
 
       if (workoutError) throw workoutError;
 
-      // Copy all exercises from the original workout
       const exercises = workoutToDuplicate.exercises as any[];
       if (exercises && exercises.length > 0) {
         const exerciseCopies = exercises.map((ex) => ({
@@ -254,7 +256,7 @@ const ProgramDetailPage = () => {
           rir: ex.rir,
           superset_group: ex.superset_group,
           order_index: ex.order_index,
-          workout_template_id: newWorkout.id,
+          workout_template_id: newWorkoutData.id,
         }));
 
         const { error: exercisesError } = await supabase
@@ -264,11 +266,11 @@ const ProgramDetailPage = () => {
         if (exercisesError) throw exercisesError;
       }
 
-      return newWorkout;
+      return newWorkoutData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
-      toast.success("Workout duplicated! You can now edit the copy.");
+      toast.success("Workout duplicated!");
     },
     onError: (error) => {
       toast.error("Failed to duplicate workout: " + error.message);
@@ -307,23 +309,6 @@ const ProgramDetailPage = () => {
     },
   });
 
-  const openEditExercise = (exercise: any) => {
-    setEditingExercise({
-      id: exercise.id,
-      name: exercise.name,
-      sets: exercise.sets,
-      reps: exercise.reps || "",
-      weight: exercise.weight || "",
-      notes: exercise.notes || "",
-      video_url: exercise.video_url || "",
-      rest_seconds: exercise.rest_seconds ?? 60,
-      rir: exercise.rir || "",
-      superset_group: exercise.superset_group || "",
-    });
-    setIsEditExerciseDialogOpen(true);
-  };
-
-  // Link exercises together as superset
   const linkWithAbove = useMutation({
     mutationFn: async ({ exerciseId, workoutId }: { exerciseId: string; workoutId: string }) => {
       const workout = workouts?.find((w) => w.id === workoutId);
@@ -333,26 +318,20 @@ const ProgramDetailPage = () => {
       const currentIndex = exercises.findIndex((e) => e.id === exerciseId);
       if (currentIndex <= 0) throw new Error("No exercise above to link with");
 
-      const currentExercise = exercises[currentIndex];
       const aboveExercise = exercises[currentIndex - 1];
-
-      // Get the superset group of the exercise above, or assign a new one
       let supersetGroup = aboveExercise.superset_group;
       
       if (!supersetGroup) {
-        // Find the next available letter
         const usedGroups = new Set(exercises.map((e) => e.superset_group).filter(Boolean));
         const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
         supersetGroup = letters.find((l) => !usedGroups.has(l)) || 'A';
         
-        // Update the above exercise with the new group
         await supabase
           .from("exercises")
           .update({ superset_group: supersetGroup })
           .eq("id", aboveExercise.id);
       }
 
-      // Update current exercise with the same group
       const { error } = await supabase
         .from("exercises")
         .update({ superset_group: supersetGroup })
@@ -369,7 +348,6 @@ const ProgramDetailPage = () => {
     },
   });
 
-  // Unlink exercise from superset
   const unlinkExercise = useMutation({
     mutationFn: async ({ exerciseId, workoutId }: { exerciseId: string; workoutId: string }) => {
       const workout = workouts?.find((w) => w.id === workoutId);
@@ -383,13 +361,11 @@ const ProgramDetailPage = () => {
         (e) => e.superset_group === currentExercise.superset_group && e.id !== exerciseId
       );
 
-      // Remove current exercise from superset
       await supabase
         .from("exercises")
         .update({ superset_group: null })
         .eq("id", exerciseId);
 
-      // If only one exercise left in group, remove that too
       if (sameGroupExercises.length === 1) {
         await supabase
           .from("exercises")
@@ -406,7 +382,33 @@ const ProgramDetailPage = () => {
     },
   });
 
-  // Helper to get exercise letter label
+  const openEditExercise = (exercise: any) => {
+    setEditingExercise({
+      id: exercise.id,
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: exercise.reps || "",
+      weight: exercise.weight || "",
+      notes: exercise.notes || "",
+      video_url: exercise.video_url || "",
+      rest_seconds: exercise.rest_seconds ?? 60,
+      rir: exercise.rir || "",
+      superset_group: exercise.superset_group || "",
+    });
+    setIsEditExerciseDialogOpen(true);
+  };
+
+  const openCreateWorkoutForDay = (day: number) => {
+    setSelectedDayForNewWorkout(day);
+    setNewWorkout({
+      ...newWorkout,
+      week_number: currentWeek,
+      day_number: day,
+    });
+    setIsWorkoutDialogOpen(true);
+  };
+
+  // Get exercise label like A, B1, B2, C1, etc.
   const getExerciseLabel = (exercises: any[], index: number) => {
     const sortedExercises = [...exercises].sort((a, b) => a.order_index - b.order_index);
     const exercise = sortedExercises[index];
@@ -429,9 +431,7 @@ const ProgramDetailPage = () => {
       }
     }
     
-    const letter = String.fromCharCode(65 + letterIndex); // A, B, C...
-    
-    // Check if this exercise is part of a superset
+    const letter = String.fromCharCode(65 + letterIndex);
     const sameGroupCount = exercises.filter(
       (e) => e.superset_group && e.superset_group === exercise.superset_group
     ).length;
@@ -463,18 +463,23 @@ const ProgramDetailPage = () => {
     );
   }
 
-  // Group workouts by week
-  const workoutsByWeek: Record<number, typeof workouts> = {};
-  workouts?.forEach((workout) => {
-    const week = workout.week_number || 1;
-    if (!workoutsByWeek[week]) workoutsByWeek[week] = [];
-    workoutsByWeek[week].push(workout);
-  });
+  const daysPerWeek = program?.days_per_week || 7;
+  const totalWeeks = program?.duration_weeks || 4;
+  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].slice(0, daysPerWeek);
+
+  // Get workouts for current week
+  const currentWeekWorkouts = workouts?.filter(w => w.week_number === currentWeek) || [];
+
+  // Group workouts by day
+  const getWorkoutsForDay = (day: number) => {
+    return currentWeekWorkouts.filter(w => w.day_number === day);
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+      {/* Header */}
+      <header className="border-b border-border bg-card sticky top-0 z-50">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -486,259 +491,297 @@ const ProgramDetailPage = () => {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{program?.name}</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-lg font-bold text-foreground">{program?.name}</h1>
+                <p className="text-xs text-muted-foreground">
                   {program?.duration_weeks} weeks • {program?.days_per_week} days/week
                 </p>
               </div>
             </div>
-
-            <Button
-              onClick={() => setIsWorkoutDialogOpen(true)}
-              className="bg-primary hover:bg-primary/90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Workout
-            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {Object.keys(workoutsByWeek).length === 0 ? (
-          <div className="text-center py-12">
-            <Dumbbell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-foreground mb-2">No workouts yet</h2>
-            <p className="text-muted-foreground mb-4">Add workouts to this program</p>
-            <Button onClick={() => setIsWorkoutDialogOpen(true)} className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Workout
-            </Button>
+      {/* Week Navigation */}
+      <div className="border-b border-border bg-card/50 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentWeek(Math.max(1, currentWeek - 1))}
+            disabled={currentWeek <= 1}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Prev
+          </Button>
+          <span className="text-sm font-semibold text-foreground">
+            Week {currentWeek} of {totalWeeks}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentWeek(Math.min(totalWeeks, currentWeek + 1))}
+            disabled={currentWeek >= totalWeeks}
+          >
+            Next
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[800px]">
+          {/* Day Headers */}
+          <div className="grid border-b border-border" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
+            {dayLabels.map((label, idx) => (
+              <div
+                key={label}
+                className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground border-r border-border last:border-r-0"
+              >
+                {label}
+                <div className="text-foreground mt-0.5">{idx + 1}</div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="space-y-8">
-            {Array.from({ length: program?.duration_weeks || 1 }, (_, i) => i + 1).map((week) => (
-              <div key={week}>
-                <h2 className="text-lg font-semibold text-foreground mb-4">Week {week}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(workoutsByWeek[week] || []).map((workout) => (
-                    <Card key={workout.id} className="bg-card border-border">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-xs text-primary font-medium uppercase">
-                              Day {workout.day_number}
-                            </p>
-                            <CardTitle className="text-foreground text-base">
-                              {workout.title}
-                            </CardTitle>
-                            {workout.subtitle && (
-                              <p className="text-xs text-muted-foreground">{workout.subtitle}</p>
-                            )}
+
+          {/* Day Columns */}
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
+            {Array.from({ length: daysPerWeek }, (_, dayIdx) => {
+              const day = dayIdx + 1;
+              const dayWorkouts = getWorkoutsForDay(day);
+
+              return (
+                <div
+                  key={day}
+                  className="border-r border-border last:border-r-0 min-h-[400px] p-2 space-y-2"
+                >
+                  {dayWorkouts.length === 0 ? (
+                    <button
+                      onClick={() => openCreateWorkoutForDay(day)}
+                      className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mx-auto mb-1" />
+                      CREATE SESSION
+                    </button>
+                  ) : (
+                    dayWorkouts.map((workout) => {
+                      const exercises = (workout.exercises as any[])?.sort((a, b) => a.order_index - b.order_index) || [];
+                      const completedSets = 0; // placeholder
+                      const totalSets = exercises.reduce((sum, ex) => sum + ex.sets, 0);
+
+                      return (
+                        <div
+                          key={workout.id}
+                          className="bg-card border border-border rounded-lg overflow-hidden"
+                        >
+                          {/* Workout Header */}
+                          <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">
+                                CL
+                              </span>
+                              <span className="text-xs font-semibold text-foreground truncate max-w-[100px]">
+                                {workout.title}
+                              </span>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3 h-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-card border-border">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedWorkout(workout.id);
+                                    setIsExerciseDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add Exercise
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => duplicateWorkout.mutate(workout.id)}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copy
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => deleteWorkout.mutate(workout.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => duplicateWorkout.mutate(workout.id)}
-                              className="text-muted-foreground hover:text-primary h-8 w-8"
-                              title="Duplicate workout"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteWorkout.mutate(workout.id)}
-                              className="text-muted-foreground hover:text-destructive h-8 w-8"
-                              title="Delete workout"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+
+                          {/* Stats Row */}
+                          <div className="flex items-center justify-around px-2 py-2 border-b border-border">
+                            <div className="flex flex-col items-center">
+                              <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
+                                <Activity className="w-3 h-3 text-muted-foreground" />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">
+                                {completedSets}/{totalSets}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
+                                <Clock className="w-3 h-3 text-muted-foreground" />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">-</span>
+                            </div>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1 mb-3">
-                          {(workout.exercises as any[])
-                            ?.sort((a, b) => a.order_index - b.order_index)
-                            .map((exercise, index, arr) => {
-                              const label = getExerciseLabel(arr, index);
+
+                          {/* Exercises */}
+                          <div className="px-2 py-2 space-y-1 max-h-[300px] overflow-y-auto">
+                            {exercises.map((exercise, idx, arr) => {
+                              const label = getExerciseLabel(arr, idx);
                               const isInSuperset = exercise.superset_group && arr.filter(e => e.superset_group === exercise.superset_group).length > 1;
-                              const prevInSameGroup = index > 0 && arr[index - 1].superset_group === exercise.superset_group;
-                              
+                              const prevInSameGroup = idx > 0 && arr[idx - 1].superset_group === exercise.superset_group;
+
                               return (
                                 <div key={exercise.id}>
                                   {/* Link button between exercises */}
-                                  {index > 0 && (
+                                  {idx > 0 && !prevInSameGroup && (
                                     <div className="flex justify-center py-0.5">
-                                      {!prevInSameGroup ? (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
-                                          className="h-5 px-2 text-xs text-muted-foreground hover:text-primary"
-                                          disabled={linkWithAbove.isPending}
-                                        >
-                                          <Link2 className="w-3 h-3 mr-1" />
-                                          Link as superset
-                                        </Button>
-                                      ) : (
-                                        <div className="h-3 border-l-2 border-primary/50" />
-                                      )}
+                                      <button
+                                        onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
+                                        className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
+                                      >
+                                        <Link2 className="w-2.5 h-2.5" />
+                                        Link
+                                      </button>
+                                    </div>
+                                  )}
+                                  {prevInSameGroup && (
+                                    <div className="flex justify-center py-0.5">
+                                      <div className="h-2 border-l-2 border-primary/50" />
                                     </div>
                                   )}
                                   <div
-                                    className={`flex items-center justify-between py-2 px-2 rounded ${
-                                      isInSuperset ? 'bg-primary/10 border-l-2 border-primary' : ''
+                                    className={`flex items-start gap-2 p-1.5 rounded cursor-pointer hover:bg-muted/50 group ${
+                                      isInSuperset ? 'bg-primary/5' : ''
                                     }`}
+                                    onClick={() => openEditExercise(exercise)}
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-xs font-bold min-w-[24px] ${isInSuperset ? 'text-primary' : 'text-muted-foreground'}`}>
-                                        {label}
-                                      </span>
-                                      <div>
-                                        <p className="text-sm font-medium text-foreground">
-                                          {exercise.name}
+                                    <div
+                                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                        isInSuperset
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-primary text-primary-foreground'
+                                      }`}
+                                    >
+                                      {label}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium text-foreground leading-tight truncate">
+                                        {exercise.name}
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground">
+                                        {exercise.sets} {exercise.sets === 1 ? 'Set' : 'Sets'}
+                                      </p>
+                                      {exercise.weight && (
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {exercise.reps} @ {exercise.weight}
                                         </p>
-                                        <p className="text-xs text-primary">
-                                          {exercise.sets} x {exercise.reps}
-                                          {exercise.weight && ` @ ${exercise.weight}`}
-                                          {exercise.rir && ` • RIR ${exercise.rir}`}
-                                        </p>
-                                      </div>
-                                      {exercise.video_url && (
-                                        <Video className="w-3 h-3 text-primary" />
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
                                       {isInSuperset && (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => unlinkExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
-                                          className="text-muted-foreground hover:text-destructive h-6 w-6"
-                                          title="Remove from superset"
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            unlinkExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id });
+                                          }}
+                                          className="p-1 text-muted-foreground hover:text-destructive"
                                         >
                                           <Unlink className="w-3 h-3" />
-                                        </Button>
+                                        </button>
                                       )}
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => openEditExercise(exercise)}
-                                        className="text-muted-foreground hover:text-primary h-6 w-6"
-                                      >
-                                        <Pencil className="w-3 h-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => deleteExercise.mutate(exercise.id)}
-                                        className="text-muted-foreground hover:text-destructive h-6 w-6"
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteExercise.mutate(exercise.id);
+                                        }}
+                                        className="p-1 text-muted-foreground hover:text-destructive"
                                       >
                                         <Trash2 className="w-3 h-3" />
-                                      </Button>
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
                               );
                             })}
+
+                            {/* Add Exercise Button */}
+                            <button
+                              onClick={() => {
+                                setSelectedWorkout(workout.id);
+                                setIsExerciseDialogOpen(true);
+                              }}
+                              className="w-full py-2 text-[10px] text-primary hover:text-primary/80 flex items-center justify-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Add Exercise
+                            </button>
+                          </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedWorkout(workout.id);
-                            setIsExerciseDialogOpen(true);
-                          }}
-                          className="w-full"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Exercise
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      );
+                    })
+                  )}
+
+                  {/* Add another workout to this day */}
+                  {dayWorkouts.length > 0 && (
+                    <button
+                      onClick={() => openCreateWorkoutForDay(day)}
+                      className="w-full py-2 text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Session
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        )}
-      </main>
+        </div>
+      </div>
 
       {/* Add Workout Dialog */}
       <Dialog open={isWorkoutDialogOpen} onOpenChange={setIsWorkoutDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Add Workout</DialogTitle>
-            <DialogDescription>Create a new workout for this program</DialogDescription>
+            <DialogTitle className="text-foreground">Create Session</DialogTitle>
+            <DialogDescription>Create a new workout for Week {newWorkout.week_number}, Day {newWorkout.day_number}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="workoutTitle">Workout Title</Label>
+              <Label htmlFor="workoutTitle">Session Title</Label>
               <Input
                 id="workoutTitle"
                 value={newWorkout.title}
                 onChange={(e) => setNewWorkout({ ...newWorkout, title: e.target.value })}
-                placeholder="e.g., Push Day"
+                placeholder="e.g., Week 2 Day 5"
                 className="bg-secondary border-border"
               />
             </div>
             <div>
-              <Label htmlFor="workoutSubtitle">Subtitle</Label>
+              <Label htmlFor="workoutSubtitle">Subtitle (optional)</Label>
               <Input
                 id="workoutSubtitle"
                 value={newWorkout.subtitle}
                 onChange={(e) => setNewWorkout({ ...newWorkout, subtitle: e.target.value })}
-                placeholder="e.g., Week 1 Day 1"
+                placeholder="e.g., Full Body Strength"
                 className="bg-secondary border-border"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="weekNumber">Week</Label>
-                <Select
-                  value={String(newWorkout.week_number)}
-                  onValueChange={(v) => setNewWorkout({ ...newWorkout, week_number: parseInt(v) })}
-                >
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {Array.from({ length: program?.duration_weeks || 4 }, (_, i) => (
-                      <SelectItem key={i + 1} value={String(i + 1)}>
-                        Week {i + 1}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="dayNumber">Day</Label>
-                <Select
-                  value={String(newWorkout.day_number)}
-                  onValueChange={(v) => setNewWorkout({ ...newWorkout, day_number: parseInt(v) })}
-                >
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {Array.from({ length: program?.days_per_week || 4 }, (_, i) => (
-                      <SelectItem key={i + 1} value={String(i + 1)}>
-                        Day {i + 1}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <Button
               onClick={() => createWorkout.mutate()}
               disabled={!newWorkout.title || createWorkout.isPending}
               className="w-full bg-primary hover:bg-primary/90"
             >
-              {createWorkout.isPending ? "Creating..." : "Create Workout"}
+              {createWorkout.isPending ? "Creating..." : "Create Session"}
             </Button>
           </div>
         </DialogContent>
@@ -746,7 +789,7 @@ const ProgramDetailPage = () => {
 
       {/* Add Exercise Dialog */}
       <Dialog open={isExerciseDialogOpen} onOpenChange={setIsExerciseDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Add Exercise</DialogTitle>
             <DialogDescription>Add an exercise to this workout</DialogDescription>
@@ -837,7 +880,7 @@ const ProgramDetailPage = () => {
                 className="bg-secondary border-border"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Use 0 for supersets/circuits. Link exercises together after adding.
+                Use 0 for supersets/circuits
               </p>
             </div>
             <div>
@@ -863,7 +906,7 @@ const ProgramDetailPage = () => {
 
       {/* Edit Exercise Dialog */}
       <Dialog open={isEditExerciseDialogOpen} onOpenChange={setIsEditExerciseDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Edit Exercise</DialogTitle>
             <DialogDescription>Update this exercise's details</DialogDescription>
@@ -872,12 +915,18 @@ const ProgramDetailPage = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="editExerciseName">Exercise Name</Label>
-                <Input
-                  id="editExerciseName"
+                <ExerciseAutocomplete
                   value={editingExercise.name}
-                  onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+                  onChange={(value) => setEditingExercise({ ...editingExercise, name: value })}
+                  onSelect={(exercise) => {
+                    setEditingExercise({
+                      ...editingExercise,
+                      name: exercise.name,
+                      video_url: exercise.video_url || editingExercise.video_url,
+                      notes: exercise.instructions || editingExercise.notes,
+                    });
+                  }}
                   placeholder="e.g., Bench Press"
-                  className="bg-secondary border-border"
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -948,9 +997,6 @@ const ProgramDetailPage = () => {
                   placeholder="60"
                   className="bg-secondary border-border"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use 0 for supersets/circuits
-                </p>
               </div>
               <div>
                 <Label htmlFor="editNotes">Coach Notes</Label>
