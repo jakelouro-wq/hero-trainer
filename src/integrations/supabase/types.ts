@@ -466,6 +466,7 @@ export type Database = {
           description: string | null
           duration_weeks: number
           id: string
+          image_url: string | null
           name: string
           updated_at: string
         }
@@ -476,6 +477,7 @@ export type Database = {
           description?: string | null
           duration_weeks?: number
           id?: string
+          image_url?: string | null
           name: string
           updated_at?: string
         }
@@ -486,6 +488,7 @@ export type Database = {
           description?: string | null
           duration_weeks?: number
           id?: string
+          image_url?: string | null
           name?: string
           updated_at?: string
         }

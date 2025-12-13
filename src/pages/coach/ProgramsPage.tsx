@@ -17,8 +17,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Calendar, Dumbbell, Trash2, Edit, Shield } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Dumbbell, Trash2, Edit, Shield, Image } from "lucide-react";
 import { toast } from "sonner";
+import ProgramImageUpload from "@/components/ProgramImageUpload";
 
 const ProgramsPage = () => {
   const navigate = useNavigate();
@@ -31,6 +32,22 @@ const ProgramsPage = () => {
     description: "",
     duration_weeks: 4,
     days_per_week: 4,
+  });
+
+  // Fetch coach profile for default image
+  const { data: coachProfile } = useQuery({
+    queryKey: ["coach-profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id && isCoach,
   });
 
   const { data: programs, isLoading } = useQuery({
@@ -218,51 +235,68 @@ const ProgramsPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {programs?.map((program) => (
-              <Card
-                key={program.id}
-                className="bg-card border-border hover:border-primary/50 transition-colors"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-foreground">{program.name}</CardTitle>
-                      <CardDescription className="mt-1">{program.description}</CardDescription>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/coach/programs/${program.id}`)}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteProgram.mutate(program.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+            {programs?.map((program) => {
+              const displayImage = (program as any).image_url || coachProfile?.avatar_url;
+              return (
+                <Card
+                  key={program.id}
+                  className="bg-card border-border hover:border-primary/50 transition-colors overflow-hidden"
+                >
+                  {/* Program Image */}
+                  <div className="relative aspect-video bg-muted">
+                    {displayImage ? (
+                      <img
+                        src={displayImage}
+                        alt={program.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image className="w-12 h-12 text-muted-foreground" />
+                      </div>
+                    )}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{program.duration_weeks} weeks</span>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-foreground">{program.name}</CardTitle>
+                        <CardDescription className="mt-1 line-clamp-2">{program.description}</CardDescription>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/coach/programs/${program.id}`)}
+                          className="text-muted-foreground hover:text-primary"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteProgram.mutate(program.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Dumbbell className="w-4 h-4" />
-                      <span>{program.days_per_week}x/week</span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{program.duration_weeks} weeks</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Dumbbell className="w-4 h-4" />
+                        <span>{program.days_per_week}x/week</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </main>

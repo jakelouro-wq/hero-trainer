@@ -115,7 +115,13 @@ const Header = () => {
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
             <Bell className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary"
+            onClick={() => navigate("/profile")}
+            title="Profile Settings"
+          >
             <User className="w-5 h-5" />
           </Button>
           <Button 

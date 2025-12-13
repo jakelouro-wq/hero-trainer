@@ -28,9 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
+import ProgramImageUpload from "@/components/ProgramImageUpload";
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +41,7 @@ const ProgramDetailPage = () => {
   const queryClient = useQueryClient();
 
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
   const [isExerciseDialogOpen, setIsExerciseDialogOpen] = useState(false);
   const [isEditExerciseDialogOpen, setIsEditExerciseDialogOpen] = useState(false);
@@ -88,6 +90,22 @@ const ProgramDetailPage = () => {
       return data;
     },
     enabled: !!id && isCoach,
+  });
+
+  // Fetch coach profile for default image
+  const { data: coachProfile } = useQuery({
+    queryKey: ["coach-profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id && isCoach,
   });
 
   const { data: workouts } = useQuery({
@@ -497,9 +515,35 @@ const ProgramDetailPage = () => {
                 </p>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImageDialogOpen(true)}
+            >
+              <Image className="w-4 h-4 mr-2" />
+              Cover Image
+            </Button>
           </div>
         </div>
       </header>
+
+      {/* Program Image Dialog */}
+      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Program Cover Image</DialogTitle>
+            <DialogDescription>
+              Upload a custom image for this program, or it will use your profile image as the default.
+            </DialogDescription>
+          </DialogHeader>
+          <ProgramImageUpload
+            programId={id || ""}
+            currentImageUrl={(program as any)?.image_url}
+            coachAvatarUrl={coachProfile?.avatar_url}
+            onUploadComplete={() => setIsImageDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Week Navigation */}
       <div className="border-b border-border bg-card/50 px-4 py-3">
