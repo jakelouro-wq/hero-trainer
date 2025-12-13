@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { useBlockedDates, isDateBlocked } from "@/hooks/useBlockedDates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,13 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Users, Calendar, Plus, Shield } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Users, Calendar, Plus, Shield, MoreVertical, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
 
 const ClientsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAdmin } = useAdminAccess();
   const { isCoach, isLoading: isCheckingAccess } = useCoachAccess();
   const queryClient = useQueryClient();
   const [isAssignOpen, setIsAssignOpen] = useState(false);
@@ -76,6 +84,61 @@ const ClientsPage = () => {
       return data;
     },
     enabled: isCoach,
+  });
+
+  // Fetch which users have coach role
+  const { data: coachRoles } = useQuery({
+    queryKey: ["coach-roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("role", "coach");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
+
+  const isUserCoach = (userId: string) => {
+    return coachRoles?.some((role) => role.user_id === userId) ?? false;
+  };
+
+  const makeCoachMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "coach" });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coach-roles"] });
+      toast.success("User has been made a coach");
+    },
+    onError: (error) => {
+      toast.error("Failed to make user a coach: " + error.message);
+    },
+  });
+
+  const removeCoachMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "coach");
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coach-roles"] });
+      toast.success("Coach role removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove coach role: " + error.message);
+    },
   });
 
   const assignProgram = useMutation({
@@ -225,6 +288,7 @@ const ClientsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {clients?.map((client) => {
               const clientProgram = getClientProgram(client.id);
+              const clientIsCoach = isUserCoach(client.id);
               return (
                 <Card
                   key={client.id}
@@ -233,14 +297,54 @@ const ClientsPage = () => {
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-foreground">
-                          {client.full_name || "Unnamed User"}
-                        </CardTitle>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-foreground">
+                            {client.full_name || "Unnamed User"}
+                          </CardTitle>
+                          {clientIsCoach && (
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                              Coach
+                            </span>
+                          )}
+                        </div>
                         <CardDescription>
                           {client.fitness_level || "No fitness level set"}
                         </CardDescription>
                       </div>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-card border-border">
+                            {clientIsCoach ? (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeCoachMutation.mutate(client.id);
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <UserCog className="w-4 h-4 mr-2" />
+                                Remove Coach Role
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  makeCoachMutation.mutate(client.id);
+                                }}
+                              >
+                                <UserCog className="w-4 h-4 mr-2" />
+                                Make Coach
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
