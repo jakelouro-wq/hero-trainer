@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Camera, Loader2, X, Image } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageCompression";
 
 interface ProgramImageUploadProps {
   programId: string;
@@ -94,7 +95,7 @@ const ProgramImageUpload = ({
     },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -104,13 +105,22 @@ const ProgramImageUpload = ({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be less than 5MB");
-      return;
-    }
+    // Reset input
+    e.target.value = "";
 
-    uploadMutation.mutate(file);
+    try {
+      // Auto-compress if over 5MB
+      let processedFile: File | Blob = file;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.info("Compressing large image...");
+        processedFile = await compressImage(file);
+      }
+
+      uploadMutation.mutate(processedFile as File);
+    } catch (error) {
+      toast.error("Failed to process image");
+      console.error("Image compression error:", error);
+    }
   };
 
   return (
