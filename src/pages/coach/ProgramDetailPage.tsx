@@ -688,13 +688,13 @@ const ProgramDetailPage = () => {
                                 <div key={exercise.id}>
                                   {/* Link button between exercises */}
                                   {idx > 0 && !prevInSameGroup && (
-                                    <div className="flex justify-center py-0.5">
+                                    <div className="flex justify-center py-1">
                                       <button
                                         onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
-                                        className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
+                                        className="text-xs text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded flex items-center gap-1 border border-primary/30 transition-colors"
                                       >
-                                        <Link2 className="w-2.5 h-2.5" />
-                                        Link
+                                        <Link2 className="w-3 h-3" />
+                                        Link as Superset
                                       </button>
                                     </div>
                                   )}
