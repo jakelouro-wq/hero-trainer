@@ -936,9 +936,29 @@ const ProgramDetailPage = () => {
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Create Session</DialogTitle>
-            <DialogDescription>Create a new workout for Week {newWorkout.week_number}, Day {newWorkout.day_number}</DialogDescription>
+            <DialogDescription>Create a new workout for Week {newWorkout.week_number}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="workoutDay">Day of Week</Label>
+              <Select
+                value={newWorkout.day_number.toString()}
+                onValueChange={(value) => setNewWorkout({ ...newWorkout, day_number: parseInt(value) })}
+              >
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Select day" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border z-50">
+                  <SelectItem value="1">Monday</SelectItem>
+                  <SelectItem value="2">Tuesday</SelectItem>
+                  <SelectItem value="3">Wednesday</SelectItem>
+                  <SelectItem value="4">Thursday</SelectItem>
+                  <SelectItem value="5">Friday</SelectItem>
+                  <SelectItem value="6">Saturday</SelectItem>
+                  <SelectItem value="7">Sunday</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label htmlFor="workoutTitle">Session Title</Label>
               <Input
