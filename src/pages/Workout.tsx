@@ -486,11 +486,39 @@ const Workout = () => {
             disabled={progress < 100}
             onClick={async () => {
               if (progress === 100 && id && user) {
+                const completedAt = new Date().toISOString();
+                
+                // Save exercise logs to the database
+                const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
+                  ([exerciseId, sets]) =>
+                    sets.map((set, index) => ({
+                      user_id: user.id,
+                      user_workout_id: id,
+                      exercise_id: exerciseId,
+                      set_number: index + 1,
+                      reps: set.reps || "0",
+                      weight: set.weight || null,
+                      completed_at: completedAt,
+                    }))
+                );
+
+                if (exerciseLogsToInsert.length > 0) {
+                  const { error: logsError } = await supabase
+                    .from("exercise_logs")
+                    .insert(exerciseLogsToInsert);
+
+                  if (logsError) {
+                    console.error("Failed to save exercise logs:", logsError);
+                    toast.error("Failed to save exercise logs");
+                    return;
+                  }
+                }
+
                 const { error } = await supabase
                   .from("user_workouts")
                   .update({
                     completed: true,
-                    completed_at: new Date().toISOString(),
+                    completed_at: completedAt,
                     duration_seconds: elapsedSeconds,
                   })
                   .eq("id", id);
@@ -512,6 +540,8 @@ const Workout = () => {
                   queryClient.invalidateQueries({ queryKey: ["next-workout"] });
                   queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
                   queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
+                  queryClient.invalidateQueries({ queryKey: ["user-stats"] });
+                  queryClient.invalidateQueries({ queryKey: ["personal-records"] });
                   navigate("/");
                 }
               }
