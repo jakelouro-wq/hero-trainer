@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import RestTimer from "./RestTimer";
 import { usePersonalRecords } from "@/hooks/usePersonalRecords";
+import { useWeightUnit } from "@/hooks/useWeightUnit";
 
 interface SetData {
   reps: string;
@@ -56,6 +57,7 @@ const ExerciseGroupCard = ({
   onToggleExpand,
   onComplete,
 }: ExerciseGroupCardProps) => {
+  const { weightUnit, setWeightUnit } = useWeightUnit();
   const { getPRForExercise } = usePersonalRecords();
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>(() => {
     const initial: Record<string, ExerciseState> = {};
@@ -275,9 +277,15 @@ const ExerciseGroupCard = ({
           <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
             Reps
           </span>
-          <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
-            Lb
-          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setWeightUnit(weightUnit === "lb" ? "kg" : "lb");
+            }}
+            className="flex-1 text-sm font-semibold text-primary text-center hover:underline"
+          >
+            {weightUnit === "lb" ? "Lb" : "Kg"}
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -321,7 +329,7 @@ const ExerciseGroupCard = ({
                       isNewPR ? "border-yellow-500 ring-1 ring-yellow-500/50" : ""
                     }`}
                     onClick={(e) => e.stopPropagation()}
-                    placeholder="Lb"
+                    placeholder={weightUnit === "lb" ? "Lb" : "Kg"}
                   />
                   {isNewPR && (
                     <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1 animate-bounce">
