@@ -87,7 +87,6 @@ const ExerciseGroupCard = ({
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [activeRestSeconds, setActiveRestSeconds] = useState<number>(60);
   const [swapDialogExercise, setSwapDialogExercise] = useState<{ id: string; name: string } | null>(null);
-  const [swappedNames, setSwappedNames] = useState<Record<string, string>>({});
 
   const isSuperset = exercises.length > 1;
   
@@ -238,20 +237,20 @@ const ExerciseGroupCard = ({
           </div>
            <div className="flex items-center gap-2 flex-1">
              <h4 className={`font-bold text-base ${allSetsCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>
-               {swappedNames[exercise.id] || exercise.name}
+               {exercise.name}
              </h4>
-             <button
-               disabled={readOnly}
-               onClick={(e) => {
-                 e.stopPropagation();
-                 if (readOnly) return;
-                 setSwapDialogExercise({ id: exercise.id, name: swappedNames[exercise.id] || exercise.name });
-               }}
-               className="p-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:pointer-events-none"
-               title="Swap exercise"
-             >
-               <RefreshCw className="w-4 h-4" />
-             </button>
+             {!readOnly && (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setSwapDialogExercise({ id: exercise.id, name: exercise.name });
+                 }}
+                 className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                 title="Swap exercise"
+               >
+                 <RefreshCw className="w-4 h-4" />
+               </button>
+             )}
            </div>
         </div>
 
@@ -568,7 +567,6 @@ const ExerciseGroupCard = ({
           open={!!swapDialogExercise}
           onOpenChange={(open) => !open && setSwapDialogExercise(null)}
           onSwap={(newExercise) => {
-            setSwappedNames(prev => ({ ...prev, [swapDialogExercise.id]: newExercise.name }));
             onSwap?.(swapDialogExercise.id, newExercise);
             setSwapDialogExercise(null);
           }}
