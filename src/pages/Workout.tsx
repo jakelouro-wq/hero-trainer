@@ -188,6 +188,17 @@ const Workout = () => {
 
       if (exercisesError) throw exercisesError;
 
+      // Fetch logs for THIS workout (used when viewing completed workouts)
+      const { data: workoutLogs, error: workoutLogsError } = await supabase
+        .from("exercise_logs")
+        .select("exercise_id, set_number, reps, weight, completed_at")
+        .eq("user_id", user.id)
+        .eq("user_workout_id", id)
+        .order("exercise_id")
+        .order("set_number");
+
+      if (workoutLogsError) throw workoutLogsError;
+
       // Fetch last workout logs for each exercise
       const exerciseIds = (exercises || []).map((e: Exercise) => e.id);
       const { data: lastLogs } = await supabase
@@ -227,6 +238,7 @@ const Workout = () => {
         workout_template: userWorkout.workout_templates,
         exercises: exercises as Exercise[],
         lastWorkoutByExercise,
+        workoutLogs: workoutLogs || [],
       };
     },
     enabled: !!user && !!id,
@@ -379,13 +391,16 @@ const Workout = () => {
         <div className="card-gradient rounded-xl border border-border p-4 mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
-              {/* Timer */}
-              {!hasStarted ? (
-                <Button
-                  onClick={startWorkout}
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90"
-                >
+              {isCompletedWorkout ? (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="text-foreground font-mono font-semibold min-w-[60px]">
+                    {formatTime(workout.duration_seconds || 0)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Completed</span>
+                </div>
+              ) : !hasStarted ? (
+                <Button onClick={startWorkout} size="sm" className="bg-primary hover:bg-primary/90">
                   <Play className="w-4 h-4 mr-2" />
                   Start
                 </Button>
@@ -412,11 +427,11 @@ const Workout = () => {
             </div>
 
             {/* Total Weight Lifted */}
-            {hasStarted && (
+            {(hasStarted || isCompletedWorkout) && (
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-4 h-4 text-primary" />
                 <span className="text-foreground font-semibold">
-                  {totalWeightLifted.toLocaleString()} lbs
+                  {Math.round(displayedTotalWeight).toLocaleString()} lbs
                 </span>
               </div>
             )}
@@ -461,19 +476,23 @@ const Workout = () => {
                   restSeconds: exercise.rest_seconds,
                   rir: exercise.rir,
                   label: (exercise as any).label || group.label,
-                  lastWorkout: workout.lastWorkoutByExercise?.[exercise.id] ? {
-                    sets: workout.lastWorkoutByExercise[exercise.id].sets,
-                    reps: workout.lastWorkoutByExercise[exercise.id].reps,
-                    weight: workout.lastWorkoutByExercise[exercise.id].weight,
-                  } : null,
+                  lastWorkout: workout.lastWorkoutByExercise?.[exercise.id]
+                    ? {
+                        sets: workout.lastWorkoutByExercise[exercise.id].sets,
+                        reps: workout.lastWorkoutByExercise[exercise.id].reps,
+                        weight: workout.lastWorkoutByExercise[exercise.id].weight,
+                      }
+                    : null,
                 }))}
                 isExpanded={expandedGroupId === group.id}
                 onToggleExpand={() =>
-                  setExpandedGroupId(
-                    expandedGroupId === group.id ? null : group.id
-                  )
+                  setExpandedGroupId(expandedGroupId === group.id ? null : group.id)
                 }
-                onComplete={handleExerciseComplete}
+                onComplete={isCompletedWorkout ? () => {} : handleExerciseComplete}
+                readOnly={isCompletedWorkout}
+                initialSetsDataByExercise={
+                  isCompletedWorkout ? (savedSetsDataByExercise as any) : undefined
+                }
               />
             ))}
           </div>

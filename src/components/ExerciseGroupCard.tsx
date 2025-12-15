@@ -45,6 +45,8 @@ interface ExerciseGroupCardProps {
   onToggleExpand: () => void;
   onComplete: (exerciseId: string, allSetsCompleted: boolean, completedSets: CompletedSetData[]) => void;
   onSwap?: (exerciseId: string, newExercise: { name: string; videoUrl: string | null; isQuickAdd: boolean }) => void;
+  initialSetsDataByExercise?: Record<string, SetData[]>;
+  readOnly?: boolean;
 }
 
 interface ExerciseState {
@@ -59,18 +61,24 @@ const ExerciseGroupCard = ({
   onToggleExpand,
   onComplete,
   onSwap,
+  initialSetsDataByExercise,
+  readOnly = false,
 }: ExerciseGroupCardProps) => {
   const { weightUnit, setWeightUnit } = useWeightUnit();
   const { getPRForExercise } = usePersonalRecords();
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>(() => {
     const initial: Record<string, ExerciseState> = {};
     exercises.forEach((ex) => {
+      const seeded = initialSetsDataByExercise?.[ex.id];
       initial[ex.id] = {
-        setsData: Array.from({ length: ex.sets }, () => ({
-          reps: "",
-          weight: "",
-          completed: false,
-        })),
+        setsData:
+          seeded && seeded.length > 0
+            ? seeded
+            : Array.from({ length: ex.sets }, () => ({
+                reps: "",
+                weight: "",
+                completed: false,
+              })),
         exerciseNote: "",
       };
     });
@@ -102,6 +110,7 @@ const ExerciseGroupCard = ({
   );
 
   const toggleSetComplete = (exerciseId: string, index: number) => {
+    if (readOnly) return;
     setExerciseStates((prev) => {
       const exerciseState = prev[exerciseId];
       const updated = [...exerciseState.setsData];
@@ -114,6 +123,7 @@ const ExerciseGroupCard = ({
   };
 
   const updateSetReps = (exerciseId: string, index: number, value: string) => {
+    if (readOnly) return;
     setExerciseStates((prev) => {
       const exerciseState = prev[exerciseId];
       const updated = [...exerciseState.setsData];
@@ -126,6 +136,7 @@ const ExerciseGroupCard = ({
   };
 
   const updateSetWeight = (exerciseId: string, index: number, value: string) => {
+    if (readOnly) return;
     setExerciseStates((prev) => {
       const exerciseState = prev[exerciseId];
       const updated = [...exerciseState.setsData];
@@ -138,6 +149,7 @@ const ExerciseGroupCard = ({
   };
 
   const addSet = (exerciseId: string) => {
+    if (readOnly) return;
     setExerciseStates((prev) => ({
       ...prev,
       [exerciseId]: {
@@ -148,6 +160,7 @@ const ExerciseGroupCard = ({
   };
 
   const removeSet = (exerciseId: string) => {
+    if (readOnly) return;
     setExerciseStates((prev) => {
       if (prev[exerciseId].setsData.length <= 1) return prev;
       return {
@@ -161,6 +174,7 @@ const ExerciseGroupCard = ({
   };
 
   const markAllComplete = (exerciseId: string) => {
+    if (readOnly) return;
     setExerciseStates((prev) => {
       const exerciseState = prev[exerciseId];
       const allComplete = exerciseState.setsData.every((s) => s.completed);
@@ -220,21 +234,23 @@ const ExerciseGroupCard = ({
               {exercise.label}
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-1">
-            <h4 className={`font-bold text-base ${allSetsCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>
-              {swappedNames[exercise.id] || exercise.name}
-            </h4>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSwapDialogExercise({ id: exercise.id, name: swappedNames[exercise.id] || exercise.name });
-              }}
-              className="p-1 text-muted-foreground hover:text-primary transition-colors"
-              title="Swap exercise"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
+           <div className="flex items-center gap-2 flex-1">
+             <h4 className={`font-bold text-base ${allSetsCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>
+               {swappedNames[exercise.id] || exercise.name}
+             </h4>
+             <button
+               disabled={readOnly}
+               onClick={(e) => {
+                 e.stopPropagation();
+                 if (readOnly) return;
+                 setSwapDialogExercise({ id: exercise.id, name: swappedNames[exercise.id] || exercise.name });
+               }}
+               className="p-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:pointer-events-none"
+               title="Swap exercise"
+             >
+               <RefreshCw className="w-4 h-4" />
+             </button>
+           </div>
         </div>
 
         {/* Video Thumbnail + Last Workout Section */}
@@ -294,28 +310,31 @@ const ExerciseGroupCard = ({
           <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
             Reps
           </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setWeightUnit(weightUnit === "lb" ? "kg" : "lb");
-            }}
-            className="flex-1 text-sm font-semibold text-primary text-center hover:underline"
-          >
-            {weightUnit === "lb" ? "Lb" : "Kg"}
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              markAllComplete(exercise.id);
-            }}
-            className="w-10 flex justify-center"
-          >
-            {allSetsCompleted ? (
-              <CheckCircle2 className="w-6 h-6 text-primary" />
-            ) : (
-              <Circle className="w-6 h-6 text-muted-foreground/50" />
-            )}
-          </button>
+           <button
+             disabled={readOnly}
+             onClick={(e) => {
+               e.stopPropagation();
+               if (readOnly) return;
+               setWeightUnit(weightUnit === "lb" ? "kg" : "lb");
+             }}
+             className="flex-1 text-sm font-semibold text-primary text-center hover:underline disabled:opacity-50 disabled:pointer-events-none"
+           >
+             {weightUnit === "lb" ? "Lb" : "Kg"}
+           </button>
+           <button
+             disabled={readOnly}
+             onClick={(e) => {
+               e.stopPropagation();
+               markAllComplete(exercise.id);
+             }}
+             className="w-10 flex justify-center disabled:opacity-50 disabled:pointer-events-none"
+           >
+             {allSetsCompleted ? (
+               <CheckCircle2 className="w-6 h-6 text-primary" />
+             ) : (
+               <Circle className="w-6 h-6 text-muted-foreground/50" />
+             )}
+           </button>
         </div>
 
         {/* Set Rows */}
@@ -329,120 +348,125 @@ const ExerciseGroupCard = ({
                 <span className="text-sm text-muted-foreground w-8 text-center">
                   {index + 1}
                 </span>
-                <Input
-                  type="text"
-                  value={set.reps}
-                  onChange={(e) => updateSetReps(exercise.id, index, e.target.value)}
-                  className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder={exercise.rir ? `RIR ${exercise.rir}` : "Reps"}
-                />
-                <div className="relative flex-1">
-                  <Input
-                    type="text"
-                    value={set.weight}
-                    onChange={(e) => updateSetWeight(exercise.id, index, e.target.value)}
-                    className={`w-full bg-secondary border-border text-center h-12 text-foreground ${
-                      isNewPR ? "border-yellow-500 ring-1 ring-yellow-500/50" : ""
-                    }`}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder={weightUnit === "lb" ? "Lb" : "Kg"}
-                  />
-                  {isNewPR && (
-                    <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1 animate-bounce">
-                      <Trophy className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSetComplete(exercise.id, index);
-                  }}
-                  className="w-10 h-10 flex items-center justify-center"
-                >
-                  <div
-                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      set.completed
-                        ? isNewPR 
-                          ? "border-yellow-500 bg-yellow-500"
-                          : "border-primary bg-primary"
-                        : "border-primary"
-                    }`}
-                  >
-                    {set.completed && (
-                      isNewPR ? (
-                        <Trophy className="w-4 h-4 text-black" />
-                      ) : (
-                        <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
-                      )
-                    )}
-                  </div>
-                </button>
+                 <Input
+                   type="text"
+                   value={set.reps}
+                   disabled={readOnly}
+                   onChange={(e) => updateSetReps(exercise.id, index, e.target.value)}
+                   className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
+                   onClick={(e) => e.stopPropagation()}
+                   placeholder={exercise.rir ? `RIR ${exercise.rir}` : "Reps"}
+                 />
+                 <div className="relative flex-1">
+                   <Input
+                     type="text"
+                     value={set.weight}
+                     disabled={readOnly}
+                     onChange={(e) => updateSetWeight(exercise.id, index, e.target.value)}
+                     className={`w-full bg-secondary border-border text-center h-12 text-foreground ${
+                       isNewPR ? "border-yellow-500 ring-1 ring-yellow-500/50" : ""
+                     }`}
+                     onClick={(e) => e.stopPropagation()}
+                     placeholder={weightUnit === "lb" ? "Lb" : "Kg"}
+                   />
+                   {isNewPR && (
+                     <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1 animate-bounce">
+                       <Trophy className="w-3 h-3 text-black" />
+                     </div>
+                   )}
+                 </div>
+                 <button
+                   disabled={readOnly}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     toggleSetComplete(exercise.id, index);
+                   }}
+                   className="w-10 h-10 flex items-center justify-center disabled:opacity-50 disabled:pointer-events-none"
+                 >
+                   <div
+                     className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                       set.completed
+                         ? isNewPR
+                           ? "border-yellow-500 bg-yellow-500"
+                           : "border-primary bg-primary"
+                         : "border-primary"
+                     }`}
+                   >
+                     {set.completed &&
+                       (isNewPR ? (
+                         <Trophy className="w-4 h-4 text-black" />
+                       ) : (
+                         <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
+                       ))}
+                   </div>
+                 </button>
               </div>
             );
           })}
         </div>
 
         {/* Add/Remove Set */}
-        <div className="flex items-center justify-center gap-4 mt-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              removeSet(exercise.id);
-            }}
-            disabled={state.setsData.length <= 1}
-            className="w-10 h-10 rounded-full border border-muted-foreground/50 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Minus className="w-5 h-5" />
-          </button>
-          <span className="text-sm text-muted-foreground font-medium">Set</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              addSet(exercise.id);
-            }}
-            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </div>
+         <div className="flex items-center justify-center gap-4 mt-4">
+           <button
+             onClick={(e) => {
+               e.stopPropagation();
+               removeSet(exercise.id);
+             }}
+             disabled={readOnly || state.setsData.length <= 1}
+             className="w-10 h-10 rounded-full border border-muted-foreground/50 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             <Minus className="w-5 h-5" />
+           </button>
+           <span className="text-sm text-muted-foreground font-medium">Set</span>
+           <button
+             disabled={readOnly}
+             onClick={(e) => {
+               e.stopPropagation();
+               addSet(exercise.id);
+             }}
+             className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+           >
+             <Plus className="w-5 h-5" />
+           </button>
+         </div>
 
-        {/* Rest Timer Button - Only show after last exercise in group */}
-        {isLastInGroup && exercise.restSeconds && exercise.restSeconds > 0 && (
-          <div className="mt-4">
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveRestSeconds(exercise.restSeconds!);
-                setShowRestTimer(true);
-              }}
-              variant="outline"
-              className="w-full border-primary text-primary hover:bg-primary/10"
-            >
-              <Timer className="w-4 h-4 mr-2" />
-              Start Rest Timer ({Math.floor(exercise.restSeconds / 60)}:{(exercise.restSeconds % 60).toString().padStart(2, "0")})
-            </Button>
-          </div>
-        )}
+         {/* Rest Timer Button - Only show after last exercise in group */}
+         {!readOnly && isLastInGroup && exercise.restSeconds && exercise.restSeconds > 0 && (
+           <div className="mt-4">
+             <Button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setActiveRestSeconds(exercise.restSeconds!);
+                 setShowRestTimer(true);
+               }}
+               variant="outline"
+               className="w-full border-primary text-primary hover:bg-primary/10"
+             >
+               <Timer className="w-4 h-4 mr-2" />
+               Start Rest Timer ({Math.floor(exercise.restSeconds / 60)}:{(exercise.restSeconds % 60).toString().padStart(2, "0")})
+             </Button>
+           </div>
+         )}
 
-        {/* Add Exercise Note */}
-        <div className="mt-4">
-          <Input
-            type="text"
-            placeholder="Add exercise note"
-            value={state.exerciseNote}
-            onChange={(e) => {
-              const value = e.target.value;
-              setExerciseStates((prev) => ({
-                ...prev,
-                [exercise.id]: { ...prev[exercise.id], exerciseNote: value },
-              }));
-            }}
-            className="bg-secondary border-border text-muted-foreground placeholder:text-muted-foreground/50"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+         {/* Add Exercise Note */}
+         <div className="mt-4">
+           <Input
+             type="text"
+             placeholder="Add exercise note"
+             value={state.exerciseNote}
+             disabled={readOnly}
+             onChange={(e) => {
+               if (readOnly) return;
+               const value = e.target.value;
+               setExerciseStates((prev) => ({
+                 ...prev,
+                 [exercise.id]: { ...prev[exercise.id], exerciseNote: value },
+               }));
+             }}
+             className="bg-secondary border-border text-muted-foreground placeholder:text-muted-foreground/50"
+             onClick={(e) => e.stopPropagation()}
+           />
+         </div>
       </div>
     );
   };
