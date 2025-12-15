@@ -32,6 +32,7 @@ const WeeklyCalendar = () => {
   const [newScheduleDate, setNewScheduleDate] = useState<Date | undefined>(undefined);
   const [showFullCalendar, setShowFullCalendar] = useState(false);
   const [fullCalendarMonth, setFullCalendarMonth] = useState(new Date());
+  const [fullCalendarSelectedDate, setFullCalendarSelectedDate] = useState<Date | null>(null);
   
   // Get the start of the current week (Monday)
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
@@ -406,8 +407,11 @@ const WeeklyCalendar = () => {
       </Dialog>
 
       {/* Full Calendar Dialog */}
-      <Dialog open={showFullCalendar} onOpenChange={setShowFullCalendar}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={showFullCalendar} onOpenChange={(open) => {
+        setShowFullCalendar(open);
+        if (!open) setFullCalendarSelectedDate(null);
+      }}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -438,87 +442,223 @@ const WeeklyCalendar = () => {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="mt-4">
-            {/* Day headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
-              ))}
+          <div className="flex gap-4">
+            {/* Calendar grid */}
+            <div className="flex-1">
+              {/* Day headers */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {(() => {
+                  const monthStart = startOfMonth(fullCalendarMonth);
+                  const monthEnd = endOfMonth(fullCalendarMonth);
+                  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+                  const calendarEnd = addDays(startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 }), 6);
+                  
+                  const days: Date[] = [];
+                  let day = calendarStart;
+                  while (day <= calendarEnd) {
+                    days.push(day);
+                    day = addDays(day, 1);
+                  }
+
+                  return days.map((date, index) => {
+                    const workout = getMonthWorkoutForDate(date);
+                    const activity = activities?.find(a => a.activity_date === format(date, "yyyy-MM-dd"));
+                    const isCurrentMonth = isSameMonth(date, fullCalendarMonth);
+                    const isActiveDay = isToday(date);
+                    const isSelected = fullCalendarSelectedDate && isSameDay(date, fullCalendarSelectedDate);
+                    const hasWorkout = !!workout;
+                    const workoutCompleted = workout?.completed;
+                    const hasActivity = !!activity;
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setFullCalendarSelectedDate(date)}
+                        className={cn(
+                          "flex flex-col items-center p-2 rounded-lg transition-all duration-200 min-h-[60px]",
+                          !isCurrentMonth && "opacity-30",
+                          isSelected
+                            ? "ring-2 ring-primary"
+                            : "",
+                          isActiveDay
+                            ? "bg-primary text-primary-foreground"
+                            : workoutCompleted
+                            ? "bg-primary/20 text-primary"
+                            : hasActivity
+                            ? "bg-accent/20 text-foreground"
+                            : hasWorkout
+                            ? "bg-secondary/50 text-foreground hover:bg-secondary"
+                            : "bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                        )}
+                      >
+                        <span className="text-sm font-bold">{format(date, "d")}</span>
+                        
+                        {/* Indicators */}
+                        <div className="flex flex-col gap-0.5 mt-1 items-center">
+                          {hasWorkout && (
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              workoutCompleted ? "bg-primary" : "bg-muted-foreground/50"
+                            )} />
+                          )}
+                          {hasActivity && (
+                            <span className="text-xs">{getActivityIcon(activity.activity_type)}</span>
+                          )}
+                        </div>
+                        
+                        {/* Workout title preview */}
+                        {hasWorkout && isCurrentMonth && (
+                          <span className="text-[10px] text-center line-clamp-1 mt-1 opacity-70">
+                            {workout.workout_templates?.title}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
             </div>
 
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {(() => {
-                const monthStart = startOfMonth(fullCalendarMonth);
-                const monthEnd = endOfMonth(fullCalendarMonth);
-                const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-                const calendarEnd = addDays(startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 }), 6);
+            {/* Selected day details panel */}
+            {fullCalendarSelectedDate && (
+              <div className="w-64 border-l border-border pl-4">
+                <h3 className="font-semibold text-sm mb-3">
+                  {format(fullCalendarSelectedDate, "EEEE, MMM d")}
+                </h3>
                 
-                const days: Date[] = [];
-                let day = calendarStart;
-                while (day <= calendarEnd) {
-                  days.push(day);
-                  day = addDays(day, 1);
-                }
-
-                return days.map((date, index) => {
-                  const workout = getMonthWorkoutForDate(date);
-                  const activity = activities?.find(a => a.activity_date === format(date, "yyyy-MM-dd"));
-                  const isCurrentMonth = isSameMonth(date, fullCalendarMonth);
-                  const isActiveDay = isToday(date);
-                  const hasWorkout = !!workout;
-                  const workoutCompleted = workout?.completed;
-                  const hasActivity = !!activity;
+                {(() => {
+                  const workout = getMonthWorkoutForDate(fullCalendarSelectedDate);
+                  const dateActivities = activities?.filter(a => a.activity_date === format(fullCalendarSelectedDate, "yyyy-MM-dd")) || [];
+                  
+                  if (!workout && dateActivities.length === 0) {
+                    return <p className="text-sm text-muted-foreground">No activities</p>;
+                  }
 
                   return (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setSelectedDate(date);
-                        setShowFullCalendar(false);
-                      }}
-                      className={cn(
-                        "flex flex-col items-center p-2 rounded-lg transition-all duration-200 min-h-[60px]",
-                        !isCurrentMonth && "opacity-30",
-                        isActiveDay
-                          ? "bg-primary text-primary-foreground"
-                          : workoutCompleted
-                          ? "bg-primary/20 text-primary"
-                          : hasActivity
-                          ? "bg-accent/20 text-foreground"
-                          : hasWorkout
-                          ? "bg-secondary/50 text-foreground hover:bg-secondary"
-                          : "bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    <div className="space-y-3">
+                      {workout && (
+                        <div className="p-3 bg-secondary/50 rounded-lg border border-border">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {workout.workout_templates?.title || "Workout"}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                {workout.workout_templates?.duration && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {workout.workout_templates.duration}
+                                  </span>
+                                )}
+                                {workout.completed && (
+                                  <span className="flex items-center gap-1 text-primary">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Done
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setShowFullCalendar(false);
+                                navigate(`/workout/${workout.id}`);
+                              }}
+                              className="flex-1 h-7 text-xs"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              View
+                            </Button>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  title="Reschedule"
+                                >
+                                  <CalendarDays className="w-3 h-3" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={undefined}
+                                  onSelect={(date) => {
+                                    if (date) {
+                                      rescheduleWorkout.mutate({
+                                        workoutId: workout.id,
+                                        newDate: format(date, "yyyy-MM-dd"),
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ["monthly-workouts"] });
+                                    }
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                deleteWorkout.mutate(workout.id);
+                                queryClient.invalidateQueries({ queryKey: ["monthly-workouts"] });
+                                setFullCalendarSelectedDate(null);
+                              }}
+                              disabled={deleteWorkout.isPending}
+                              className="h-7 px-2 text-destructive hover:text-destructive"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                    >
-                      <span className="text-sm font-bold">{format(date, "d")}</span>
-                      
-                      {/* Indicators */}
-                      <div className="flex flex-col gap-0.5 mt-1 items-center">
-                        {hasWorkout && (
-                          <div className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            workoutCompleted ? "bg-primary" : "bg-muted-foreground/50"
-                          )} />
-                        )}
-                        {hasActivity && (
-                          <span className="text-xs">{getActivityIcon(activity.activity_type)}</span>
-                        )}
-                      </div>
-                      
-                      {/* Workout title preview */}
-                      {hasWorkout && isCurrentMonth && (
-                        <span className="text-[10px] text-center line-clamp-1 mt-1 opacity-70">
-                          {workout.workout_templates?.title}
-                        </span>
-                      )}
-                    </button>
+
+                      {dateActivities.map((activity) => (
+                        <div key={activity.id} className="p-3 bg-secondary/50 rounded-lg border border-border">
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">{getActivityIcon(activity.activity_type)}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {getActivityLabel(activity.activity_type)}
+                              </p>
+                              {activity.duration_minutes && (
+                                <p className="text-xs text-muted-foreground">
+                                  {activity.duration_minutes} min
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteActivity(activity.id)}
+                              disabled={deleteActivity.isPending}
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   );
-                });
-              })()}
-            </div>
+                })()}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
