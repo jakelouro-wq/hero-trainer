@@ -290,22 +290,25 @@ const Workout = () => {
   // Determine if this is a completed workout (viewing history)
   const isCompletedWorkout = workout?.completed === true;
 
+  type SavedSetRow = { reps: string; weight: string; completed: boolean };
+
   // Parse saved sets data from workout logs for completed workouts
   const savedSetsDataByExercise = useMemo(() => {
     if (!isCompletedWorkout || !workout?.workoutLogs) return {};
-    
-    const result: Record<string, CompletedSetData[]> = {};
+
+    const result: Record<string, SavedSetRow[]> = {};
     workout.workoutLogs.forEach((log: any) => {
-      if (!result[log.exercise_id]) {
-        result[log.exercise_id] = [];
-      }
+      if (!result[log.exercise_id]) result[log.exercise_id] = [];
       result[log.exercise_id].push({
-        reps: log.reps || '',
-        weight: log.weight || '',
+        reps: log.reps ?? "",
+        weight: log.weight ?? "",
+        completed: true,
       });
     });
+
     return result;
   }, [isCompletedWorkout, workout?.workoutLogs]);
+
 
   // Calculate saved total weight for completed workouts
   const savedTotalWeight = useMemo(() => {
@@ -370,9 +373,12 @@ const Workout = () => {
     return groups;
   }, [workout?.exercises]);
 
-  const progress = workout?.exercises
-    ? Math.round((completedExercises.size / workout.exercises.length) * 100)
-    : 0;
+  const progress = isCompletedWorkout
+    ? 100
+    : workout?.exercises
+      ? Math.round((completedExercises.size / workout.exercises.length) * 100)
+      : 0;
+
 
   if (isLoading) {
     return (
@@ -531,77 +537,82 @@ const Workout = () => {
           </div>
         </div>
 
-        {/* Complete Button */}
-        <div className="mt-8 pb-8">
-          <Button
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
-            disabled={progress < 100}
-            onClick={async () => {
-              if (progress === 100 && id && user) {
-                const completedAt = new Date().toISOString();
-                
-                // Save exercise logs to the database
-                const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
-                  ([exerciseId, sets]) =>
-                    sets.map((set, index) => ({
-                      user_id: user.id,
-                      user_workout_id: id,
-                      exercise_id: exerciseId,
-                      set_number: index + 1,
-                      reps: set.reps || "0",
-                      weight: set.weight || null,
-                      completed_at: completedAt,
-                    }))
-                );
+        {!isCompletedWorkout && (
+          <>
+            {/* Complete Button */}
+            <div className="mt-8 pb-8">
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
+                disabled={progress < 100}
+                onClick={async () => {
+                  if (progress === 100 && id && user) {
+                    const completedAt = new Date().toISOString();
 
-                if (exerciseLogsToInsert.length > 0) {
-                  const { error: logsError } = await supabase
-                    .from("exercise_logs")
-                    .insert(exerciseLogsToInsert);
+                    // Save exercise logs to the database
+                    const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
+                      ([exerciseId, sets]) =>
+                        sets.map((set, index) => ({
+                          user_id: user.id,
+                          user_workout_id: id,
+                          exercise_id: exerciseId,
+                          set_number: index + 1,
+                          reps: set.reps || "0",
+                          weight: set.weight || null,
+                          completed_at: completedAt,
+                        }))
+                    );
 
-                  if (logsError) {
-                    console.error("Failed to save exercise logs:", logsError);
-                    toast.error("Failed to save exercise logs");
-                    return;
+                    if (exerciseLogsToInsert.length > 0) {
+                      const { error: logsError } = await supabase
+                        .from("exercise_logs")
+                        .insert(exerciseLogsToInsert);
+
+                      if (logsError) {
+                        console.error("Failed to save exercise logs:", logsError);
+                        toast.error("Failed to save exercise logs");
+                        return;
+                      }
+                    }
+
+                    const { error } = await supabase
+                      .from("user_workouts")
+                      .update({
+                        completed: true,
+                        completed_at: completedAt,
+                        duration_seconds: elapsedSeconds,
+                      })
+                      .eq("id", id);
+
+                    if (error) {
+                      toast.error("Failed to save workout");
+                    } else {
+                      // Clear session from localStorage
+                      localStorage.removeItem(getSessionKey(id));
+
+                      // Reschedule remaining workouts to maintain weekday pattern
+                      try {
+                        await rescheduleRemainingWorkouts(user.id, id);
+                      } catch (rescheduleError) {
+                        console.error("Failed to reschedule workouts:", rescheduleError);
+                      }
+
+                      toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
+                      queryClient.invalidateQueries({ queryKey: ["next-workout"] });
+                      queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
+                      queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
+                      queryClient.invalidateQueries({ queryKey: ["user-stats"] });
+                      queryClient.invalidateQueries({ queryKey: ["personal-records"] });
+                      navigate("/");
+                    }
                   }
-                }
+                }}
+              >
+                {progress < 100 ? `Complete All Exercises (${progress}%)` : "Finish Workout"}
+              </Button>
+            </div>
+          </>
+        )}
 
-                const { error } = await supabase
-                  .from("user_workouts")
-                  .update({
-                    completed: true,
-                    completed_at: completedAt,
-                    duration_seconds: elapsedSeconds,
-                  })
-                  .eq("id", id);
-
-                if (error) {
-                  toast.error("Failed to save workout");
-                } else {
-                  // Clear session from localStorage
-                  localStorage.removeItem(getSessionKey(id));
-                  
-                  // Reschedule remaining workouts to maintain weekday pattern
-                  try {
-                    await rescheduleRemainingWorkouts(user.id, id);
-                  } catch (rescheduleError) {
-                    console.error("Failed to reschedule workouts:", rescheduleError);
-                  }
-                  
-                  toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
-                  queryClient.invalidateQueries({ queryKey: ["next-workout"] });
-                  queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
-                  queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
-                  queryClient.invalidateQueries({ queryKey: ["user-stats"] });
-                  queryClient.invalidateQueries({ queryKey: ["personal-records"] });
-                  navigate("/");
-                }
-              }
-            }}
-          >
-            {progress < 100 ? `Complete All Exercises (${progress}%)` : "Finish Workout"}
-          </Button>
-        </div>
       </div>
     </div>
   );
