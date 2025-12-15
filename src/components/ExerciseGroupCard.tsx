@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer, ChevronDown, Trophy } from "lucide-react";
+import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer, ChevronDown, Trophy, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import RestTimer from "./RestTimer";
 import { usePersonalRecords } from "@/hooks/usePersonalRecords";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
+import ExerciseSwapDialog from "./ExerciseSwapDialog";
 
 interface SetData {
   reps: string;
@@ -43,6 +44,7 @@ interface ExerciseGroupCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onComplete: (exerciseId: string, allSetsCompleted: boolean, completedSets: CompletedSetData[]) => void;
+  onSwap?: (exerciseId: string, newExercise: { name: string; videoUrl: string | null; isQuickAdd: boolean }) => void;
 }
 
 interface ExerciseState {
@@ -56,6 +58,7 @@ const ExerciseGroupCard = ({
   isExpanded,
   onToggleExpand,
   onComplete,
+  onSwap,
 }: ExerciseGroupCardProps) => {
   const { weightUnit, setWeightUnit } = useWeightUnit();
   const { getPRForExercise } = usePersonalRecords();
@@ -75,6 +78,8 @@ const ExerciseGroupCard = ({
   });
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [activeRestSeconds, setActiveRestSeconds] = useState<number>(60);
+  const [swapDialogExercise, setSwapDialogExercise] = useState<{ id: string; name: string } | null>(null);
+  const [swappedNames, setSwappedNames] = useState<Record<string, string>>({});
 
   const isSuperset = exercises.length > 1;
   
@@ -215,9 +220,21 @@ const ExerciseGroupCard = ({
               {exercise.label}
             </span>
           </div>
-          <h4 className={`font-bold text-base ${allSetsCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>
-            {exercise.name}
-          </h4>
+          <div className="flex items-center gap-2 flex-1">
+            <h4 className={`font-bold text-base ${allSetsCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>
+              {swappedNames[exercise.id] || exercise.name}
+            </h4>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSwapDialogExercise({ id: exercise.id, name: swappedNames[exercise.id] || exercise.name });
+              }}
+              className="p-1 text-muted-foreground hover:text-primary transition-colors"
+              title="Swap exercise"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Video Thumbnail + Last Workout Section */}
@@ -318,7 +335,7 @@ const ExerciseGroupCard = ({
                   onChange={(e) => updateSetReps(exercise.id, index, e.target.value)}
                   className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
                   onClick={(e) => e.stopPropagation()}
-                  placeholder="Reps"
+                  placeholder={exercise.rir ? `RIR ${exercise.rir}` : "Reps"}
                 />
                 <div className="relative flex-1">
                   <Input
@@ -517,6 +534,20 @@ const ExerciseGroupCard = ({
       {/* Rest Timer Modal */}
       {showRestTimer && (
         <RestTimer restSeconds={activeRestSeconds} onClose={() => setShowRestTimer(false)} />
+      )}
+
+      {/* Exercise Swap Dialog */}
+      {swapDialogExercise && (
+        <ExerciseSwapDialog
+          open={!!swapDialogExercise}
+          onOpenChange={(open) => !open && setSwapDialogExercise(null)}
+          onSwap={(newExercise) => {
+            setSwappedNames(prev => ({ ...prev, [swapDialogExercise.id]: newExercise.name }));
+            onSwap?.(swapDialogExercise.id, newExercise);
+            setSwapDialogExercise(null);
+          }}
+          currentExerciseName={swapDialogExercise.name}
+        />
       )}
     </div>
   );
