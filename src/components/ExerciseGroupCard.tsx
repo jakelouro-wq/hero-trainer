@@ -91,16 +91,18 @@ const ExerciseGroupCard = ({
 
   const isSuperset = exercises.length > 1;
   
-  // Report completed sets to parent via useEffect to avoid setState during render
+  // Report ALL sets with data to parent (not just explicitly completed ones)
+  // This ensures data is saved even if user forgets to check the completion box
   useEffect(() => {
     exercises.forEach((ex) => {
       const state = exerciseStates[ex.id];
       if (state) {
         const allCompleted = state.setsData.every((set) => set.completed);
-        const completedSets = state.setsData
-          .filter((s) => s.completed)
+        // Send ALL sets that have any data entered (reps or weight), regardless of checkbox
+        const setsWithData = state.setsData
+          .filter((s) => s.reps.trim() !== "" || s.weight.trim() !== "")
           .map((s) => ({ reps: s.reps, weight: s.weight }));
-        onComplete(ex.id, allCompleted, completedSets);
+        onComplete(ex.id, allCompleted, setsWithData);
       }
     });
   }, [exerciseStates]);

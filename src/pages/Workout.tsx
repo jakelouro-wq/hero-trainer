@@ -562,6 +562,12 @@ const Workout = () => {
                         }))
                     );
 
+                    // Warn if no exercise data to save
+                    if (exerciseLogsToInsert.length === 0) {
+                      console.warn("No exercise logs to save - exerciseWeights:", exerciseWeights);
+                      toast.warning("No exercise data was logged. Your workout will be saved without set details.");
+                    }
+
                     if (exerciseLogsToInsert.length > 0) {
                       const { error: logsError } = await supabase
                         .from("exercise_logs")
