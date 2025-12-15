@@ -3,7 +3,7 @@ import { Circle, CheckCircle2, Minus, Plus, Play, ChevronRight, Timer } from "lu
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import RestTimer from "./RestTimer";
-
+import { useWeightUnit } from "@/hooks/useWeightUnit";
 interface SetData {
   reps: string;
   weight: string;
@@ -54,6 +54,7 @@ const ExerciseDetailCard = ({
   onToggleExpand,
   onComplete,
 }: ExerciseDetailCardProps) => {
+  const { weightUnit, setWeightUnit } = useWeightUnit();
   const [setsData, setSetsData] = useState<SetData[]>(() =>
     Array.from({ length: sets }, () => ({
       reps: "",
@@ -63,7 +64,6 @@ const ExerciseDetailCard = ({
   );
   const [exerciseNote, setExerciseNote] = useState("");
   const [showRestTimer, setShowRestTimer] = useState(false);
-
   const allSetsCompleted = setsData.every((set) => set.completed);
 
   const toggleSetComplete = (index: number) => {
@@ -236,9 +236,15 @@ const ExerciseDetailCard = ({
             <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
               Reps
             </span>
-            <span className="text-sm font-semibold text-muted-foreground flex-1 text-center">
-              Lb
-            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setWeightUnit(weightUnit === "lb" ? "kg" : "lb");
+              }}
+              className="flex-1 text-sm font-semibold text-primary text-center hover:underline"
+            >
+              {weightUnit === "lb" ? "Lb" : "Kg"}
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -275,7 +281,7 @@ const ExerciseDetailCard = ({
                   onChange={(e) => updateSetWeight(index, e.target.value)}
                   className="flex-1 bg-secondary border-border text-center h-12 text-foreground"
                   onClick={(e) => e.stopPropagation()}
-                  placeholder="Lb"
+                  placeholder={weightUnit === "lb" ? "Lb" : "Kg"}
                 />
                 <button
                   onClick={(e) => {
