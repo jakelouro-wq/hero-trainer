@@ -124,38 +124,38 @@ const Index = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
               <StatsCard
-                icon={Dumbbell}
-                label="Weight Lifted"
-                value={stats?.totalWeightLifted ? stats.totalWeightLifted.toLocaleString() : "0"}
-                subtext="lbs this month"
+                icon={Calendar}
+                label="Workouts"
+                value={stats?.workoutsThisWeek?.toString() || "0"}
+                subtext="This week"
                 delay={500}
               />
               <StatsCard
-                icon={Calendar}
-                label="Workouts"
-                value={stats?.workoutsThisMonth?.toString() || "0"}
-                subtext="This month"
+                icon={Dumbbell}
+                label="Weight Lifted"
+                value={stats?.totalWeightLiftedWeek ? stats.totalWeightLiftedWeek.toLocaleString() : "0"}
+                subtext="lbs this week"
                 delay={600}
-              />
-              <StatsCard
-                icon={Trophy}
-                label="Program"
-                value={`${stats?.programProgress || 0}%`}
-                subtext="Complete"
-                delay={700}
               />
               <div 
                 onClick={() => navigate("/records")}
                 className="cursor-pointer transition-transform hover:scale-105"
               >
                 <StatsCard
-                  icon={TrendingUp}
-                  label="Records"
-                  value="View"
-                  subtext="Your PRs"
-                  delay={800}
+                  icon={Flame}
+                  label="New PRs"
+                  value={stats?.newRecordsThisWeek?.toString() || "0"}
+                  subtext="This week"
+                  delay={700}
                 />
               </div>
+              <StatsCard
+                icon={Trophy}
+                label="Program"
+                value={`${stats?.programProgress || 0}%`}
+                subtext="Complete"
+                delay={800}
+              />
             </div>
 
             {/* Upcoming */}
