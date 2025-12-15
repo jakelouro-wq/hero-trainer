@@ -287,6 +287,39 @@ const Workout = () => {
     }, 0);
   }, 0);
 
+  // Determine if this is a completed workout (viewing history)
+  const isCompletedWorkout = workout?.completed === true;
+
+  // Parse saved sets data from workout logs for completed workouts
+  const savedSetsDataByExercise = useMemo(() => {
+    if (!isCompletedWorkout || !workout?.workoutLogs) return {};
+    
+    const result: Record<string, CompletedSetData[]> = {};
+    workout.workoutLogs.forEach((log: any) => {
+      if (!result[log.exercise_id]) {
+        result[log.exercise_id] = [];
+      }
+      result[log.exercise_id].push({
+        reps: log.reps || '',
+        weight: log.weight || '',
+      });
+    });
+    return result;
+  }, [isCompletedWorkout, workout?.workoutLogs]);
+
+  // Calculate saved total weight for completed workouts
+  const savedTotalWeight = useMemo(() => {
+    if (!isCompletedWorkout || !workout?.workoutLogs) return 0;
+    return workout.workoutLogs.reduce((total: number, log: any) => {
+      const weight = parseFloat(log.weight) || 0;
+      const reps = parseInt(log.reps) || 0;
+      return total + (weight * reps);
+    }, 0);
+  }, [isCompletedWorkout, workout?.workoutLogs]);
+
+  // Display either active or saved total weight
+  const displayedTotalWeight = isCompletedWorkout ? savedTotalWeight : totalWeightLifted;
+
   // Group exercises by superset_group from database
   const exerciseGroups = useMemo(() => {
     if (!workout?.exercises) return [];
