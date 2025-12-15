@@ -3,9 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Play, Pause, Dumbbell } from "lucide-react";
+import { ArrowLeft, Clock, Play, Pause, Dumbbell, PlusCircle } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
+import ManualExerciseLogEntry from "@/components/ManualExerciseLogEntry";
 import { toast } from "sonner";
 import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
 
@@ -37,6 +38,7 @@ interface SessionState {
   totalPausedMs: number; // accumulated paused time
   completedExercises: string[];
   exerciseWeights: Record<string, CompletedSetData[]>;
+  swappedExercises: Record<string, string>; // exerciseId -> swapped exercise name
 }
 
 const getSessionKey = (workoutId: string) => `workout_session_${workoutId}`;
@@ -48,6 +50,7 @@ const Workout = () => {
   const queryClient = useQueryClient();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
+  const [swappedExercises, setSwappedExercises] = useState<Record<string, string>>({});
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   
   // Timer state - now based on timestamps for persistence
@@ -67,6 +70,7 @@ const Workout = () => {
         setSessionState(parsed);
         setCompletedExercises(new Set(parsed.completedExercises));
         setExerciseWeights(parsed.exerciseWeights);
+        setSwappedExercises(parsed.swappedExercises || {});
       } catch (e) {
         console.error("Failed to parse session state:", e);
       }
@@ -132,6 +136,7 @@ const Workout = () => {
       totalPausedMs: 0,
       completedExercises: [],
       exerciseWeights: {},
+      swappedExercises: {},
     };
     setSessionState(newState);
     saveSession(newState);
@@ -191,13 +196,23 @@ const Workout = () => {
       // Fetch logs for THIS workout (used when viewing completed workouts)
       const { data: workoutLogs, error: workoutLogsError } = await supabase
         .from("exercise_logs")
-        .select("exercise_id, set_number, reps, weight, completed_at")
+        .select("exercise_id, set_number, reps, weight, completed_at, swapped_exercise_name")
         .eq("user_id", user.id)
         .eq("user_workout_id", id)
         .order("exercise_id")
         .order("set_number");
 
       if (workoutLogsError) throw workoutLogsError;
+
+      // Extract swapped exercise names for completed workouts
+      const savedSwappedExercises: Record<string, string> = {};
+      if (workoutLogs) {
+        workoutLogs.forEach((log: any) => {
+          if (log.swapped_exercise_name) {
+            savedSwappedExercises[log.exercise_id] = log.swapped_exercise_name;
+          }
+        });
+      }
 
       // Fetch last workout logs for each exercise
       const exerciseIds = (exercises || []).map((e: Exercise) => e.id);
@@ -239,10 +254,18 @@ const Workout = () => {
         exercises: exercises as Exercise[],
         lastWorkoutByExercise,
         workoutLogs: workoutLogs || [],
+        savedSwappedExercises,
       };
     },
     enabled: !!user && !!id,
   });
+
+  // Load saved swapped exercises for completed workouts
+  useEffect(() => {
+    if (workout?.savedSwappedExercises && Object.keys(workout.savedSwappedExercises).length > 0) {
+      setSwappedExercises(workout.savedSwappedExercises);
+    }
+  }, [workout?.savedSwappedExercises]);
 
   const handleExerciseComplete = (exerciseId: string, isComplete: boolean, completedSets: CompletedSetData[]) => {
     setCompletedExercises((prev) => {
@@ -278,6 +301,24 @@ const Workout = () => {
     }));
   };
 
+  // Handle exercise swap
+  const handleExerciseSwap = (exerciseId: string, newExercise: { name: string; videoUrl: string | null; isQuickAdd: boolean }) => {
+    setSwappedExercises((prev) => {
+      const updated = { ...prev, [exerciseId]: newExercise.name };
+      
+      if (sessionState) {
+        const newState: SessionState = {
+          ...sessionState,
+          swappedExercises: updated,
+        };
+        setSessionState(newState);
+        saveSession(newState);
+      }
+      
+      return updated;
+    });
+  };
+
   // Calculate total weight lifted from all completed sets
   const totalWeightLifted = Object.values(exerciseWeights).reduce((total, sets) => {
     return total + sets.reduce((setTotal, set) => {
@@ -289,6 +330,10 @@ const Workout = () => {
 
   // Determine if this is a completed workout (viewing history)
   const isCompletedWorkout = workout?.completed === true;
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  
+  // Check if workout has any logged sets
+  const hasMissingLogs = isCompletedWorkout && (!workout?.workoutLogs || workout.workoutLogs.length === 0);
 
   type SavedSetRow = { reps: string; weight: string; completed: boolean };
 
@@ -506,7 +551,7 @@ const Workout = () => {
                 groupLabel={group.label}
                 exercises={group.exercises.map((exercise) => ({
                   id: exercise.id,
-                  name: exercise.name,
+                  name: swappedExercises[exercise.id] || exercise.name,
                   sets: exercise.sets,
                   reps: exercise.reps,
                   weight: exercise.weight,
@@ -528,6 +573,7 @@ const Workout = () => {
                   setExpandedGroupId(expandedGroupId === group.id ? null : group.id)
                 }
                 onComplete={isCompletedWorkout ? () => {} : handleExerciseComplete}
+                onSwap={isCompletedWorkout ? undefined : handleExerciseSwap}
                 readOnly={isCompletedWorkout}
                 initialSetsDataByExercise={
                   isCompletedWorkout ? (savedSetsDataByExercise as any) : undefined
@@ -535,8 +581,21 @@ const Workout = () => {
               />
             ))}
           </div>
-        </div>
 
+          {/* Manual Entry Button for Completed Workouts with Missing Data */}
+          {hasMissingLogs && (
+            <div className="mt-6">
+              <Button
+                onClick={() => setShowManualEntry(true)}
+                variant="outline"
+                className="w-full border-primary text-primary hover:bg-primary/10"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Missing Exercise Data
+              </Button>
+            </div>
+          )}
+        </div>
         {!isCompletedWorkout && (
           <>
             {/* Complete Button */}
@@ -559,6 +618,7 @@ const Workout = () => {
                           reps: set.reps || "0",
                           weight: set.weight || null,
                           completed_at: completedAt,
+                          swapped_exercise_name: swappedExercises[exerciseId] || null,
                         }))
                     );
 
@@ -619,6 +679,16 @@ const Workout = () => {
           </>
         )}
 
+        {/* Manual Exercise Log Entry Dialog */}
+        {showManualEntry && workout?.exercises && id && user && (
+          <ManualExerciseLogEntry
+            open={showManualEntry}
+            onOpenChange={setShowManualEntry}
+            workoutId={id}
+            userId={user.id}
+            exercises={workout.exercises.map((ex) => ({ id: ex.id, name: ex.name }))}
+          />
+        )}
       </div>
     </div>
   );

@@ -185,6 +185,7 @@ export type Database = {
           id: string
           reps: string
           set_number: number
+          swapped_exercise_name: string | null
           user_id: string
           user_workout_id: string
           weight: string | null
@@ -196,6 +197,7 @@ export type Database = {
           id?: string
           reps: string
           set_number: number
+          swapped_exercise_name?: string | null
           user_id: string
           user_workout_id: string
           weight?: string | null
@@ -207,6 +209,7 @@ export type Database = {
           id?: string
           reps?: string
           set_number?: number
+          swapped_exercise_name?: string | null
           user_id?: string
           user_workout_id?: string
           weight?: string | null
