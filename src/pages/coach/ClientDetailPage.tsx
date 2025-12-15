@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,6 +48,7 @@ const ClientDetailPage = () => {
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("calendar");
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
+  const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<Set<string>>(new Set());
 
   // Fetch client profile
   const { data: client, isLoading: isLoadingClient } = useQuery({
@@ -230,6 +232,52 @@ const ClientDetailPage = () => {
       toast.error("Failed to delete: " + error.message);
     },
   });
+
+  // Bulk delete workouts mutation
+  const bulkDeleteWorkouts = useMutation({
+    mutationFn: async (workoutIds: string[]) => {
+      const { error } = await supabase
+        .from("user_workouts")
+        .delete()
+        .in("id", workoutIds);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-workouts", clientId] });
+      setSelectedWorkoutIds(new Set());
+      toast.success("Workouts deleted");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete: " + error.message);
+    },
+  });
+
+  const toggleWorkoutSelection = (workoutId: string) => {
+    setSelectedWorkoutIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workoutId)) {
+        newSet.delete(workoutId);
+      } else {
+        newSet.add(workoutId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllWorkouts = (workoutList: any[]) => {
+    const allIds = workoutList.map(w => w.id);
+    const allSelected = allIds.every(id => selectedWorkoutIds.has(id));
+    if (allSelected) {
+      setSelectedWorkoutIds(prev => {
+        const newSet = new Set(prev);
+        allIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    } else {
+      setSelectedWorkoutIds(prev => new Set([...prev, ...allIds]));
+    }
+  };
 
   const handleReschedule = (workout: any) => {
     setSelectedWorkout(workout);
@@ -436,24 +484,66 @@ const ClientDetailPage = () => {
           </TabsList>
 
           <TabsContent value="calendar" className="space-y-6">
+            {/* Bulk Delete Bar */}
+            {selectedWorkoutIds.size > 0 && (
+              <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                <p className="text-sm text-foreground">
+                  {selectedWorkoutIds.size} workout{selectedWorkoutIds.size > 1 ? 's' : ''} selected
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedWorkoutIds(new Set())}
+                  >
+                    Clear Selection
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => bulkDeleteWorkouts.mutate(Array.from(selectedWorkoutIds))}
+                    disabled={bulkDeleteWorkouts.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {bulkDeleteWorkouts.isPending ? "Deleting..." : "Delete Selected"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Missed Workouts */}
             {pastIncompleteWorkouts.length > 0 && (
               <Card className="bg-card border-border border-destructive/50">
                 <CardHeader>
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <XCircle className="w-5 h-5 text-destructive" />
-                    Missed Workouts ({pastIncompleteWorkouts.length})
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-foreground flex items-center gap-2">
+                      <XCircle className="w-5 h-5 text-destructive" />
+                      Missed Workouts ({pastIncompleteWorkouts.length})
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => selectAllWorkouts(pastIncompleteWorkouts)}
+                      className="text-xs"
+                    >
+                      {pastIncompleteWorkouts.every(w => selectedWorkoutIds.has(w.id)) ? "Deselect All" : "Select All"}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {pastIncompleteWorkouts.map((workout) => (
                       <div
                         key={workout.id}
-                        className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-destructive/20"
+                        className={`flex items-center justify-between p-3 bg-secondary/50 rounded-lg border ${
+                          selectedWorkoutIds.has(workout.id) ? 'border-primary' : 'border-destructive/20'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <GripVertical className="w-4 h-4 text-muted-foreground" />
+                          <Checkbox
+                            checked={selectedWorkoutIds.has(workout.id)}
+                            onCheckedChange={() => toggleWorkoutSelection(workout.id)}
+                          />
                           <div>
                             <p className="font-medium text-foreground">
                               {workout.workout_templates?.title}
@@ -491,23 +581,40 @@ const ClientDetailPage = () => {
             {/* Upcoming Workouts */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-foreground flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  Upcoming Workouts ({upcomingWorkouts.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    Upcoming Workouts ({upcomingWorkouts.length})
+                  </CardTitle>
+                  {upcomingWorkouts.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => selectAllWorkouts(upcomingWorkouts)}
+                      className="text-xs"
+                    >
+                      {upcomingWorkouts.every(w => selectedWorkoutIds.has(w.id)) ? "Deselect All" : "Select All"}
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {upcomingWorkouts.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">No upcoming workouts scheduled</p>
                 ) : (
                   <div className="space-y-2">
-                    {upcomingWorkouts.slice(0, 10).map((workout) => (
+                    {upcomingWorkouts.map((workout) => (
                       <div
                         key={workout.id}
-                        className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
+                        className={`flex items-center justify-between p-3 bg-secondary/50 rounded-lg border ${
+                          selectedWorkoutIds.has(workout.id) ? 'border-primary' : 'border-transparent'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <GripVertical className="w-4 h-4 text-muted-foreground" />
+                          <Checkbox
+                            checked={selectedWorkoutIds.has(workout.id)}
+                            onCheckedChange={() => toggleWorkoutSelection(workout.id)}
+                          />
                           <div>
                             <p className="font-medium text-foreground">
                               {workout.workout_templates?.title}
@@ -540,11 +647,6 @@ const ClientDetailPage = () => {
                         </div>
                       </div>
                     ))}
-                    {upcomingWorkouts.length > 10 && (
-                      <p className="text-sm text-muted-foreground text-center pt-2">
-                        + {upcomingWorkouts.length - 10} more workouts
-                      </p>
-                    )}
                   </div>
                 )}
               </CardContent>
