@@ -20,6 +20,7 @@ interface Exercise {
   rest_seconds: number | null;
   rir: string | null;
   order_index: number;
+  superset_group: string | null;
 }
 
 interface ExerciseLog {
@@ -170,43 +171,51 @@ const Workout = () => {
     }, 0);
   }, 0);
 
-  // Group exercises into supersets (pairs after the first exercise)
+  // Group exercises by superset_group from database
   const exerciseGroups = useMemo(() => {
     if (!workout?.exercises) return [];
     
-    const groups: { id: string; label: string; exercises: typeof workout.exercises }[] = [];
+    const groups: { id: string; label: string; exercises: (Exercise & { label?: string })[] }[] = [];
     const exercises = workout.exercises;
     
     if (exercises.length === 0) return groups;
     
-    // First exercise is always standalone (A)
-    if (exercises.length > 0) {
-      groups.push({
-        id: exercises[0].id,
-        label: "A",
-        exercises: [exercises[0]],
-      });
-    }
+    // Group exercises by their superset_group
+    let currentGroupLabel = 'A';
+    let i = 0;
     
-    // Remaining exercises are paired into supersets (B1/B2, C1/C2, etc.)
-    let groupIndex = 1; // Start with B
-    for (let i = 1; i < exercises.length; i += 2) {
-      const letter = String.fromCharCode(65 + groupIndex);
-      const pair = exercises.slice(i, i + 2);
+    while (i < exercises.length) {
+      const exercise = exercises[i];
       
-      // Add labels to exercises in the group
-      const labeledExercises = pair.map((ex, idx) => ({
-        ...ex,
-        label: pair.length > 1 ? `${letter}${idx + 1}` : letter,
-      }));
+      if (exercise.superset_group) {
+        // Find all exercises with the same superset_group
+        const groupExercises = exercises.filter(e => e.superset_group === exercise.superset_group);
+        
+        // Add labels to exercises in the group
+        const labeledExercises = groupExercises.map((ex, idx) => ({
+          ...ex,
+          label: `${currentGroupLabel}${idx + 1}`,
+        }));
+        
+        groups.push({
+          id: `group-${exercise.superset_group}-${i}`,
+          label: currentGroupLabel,
+          exercises: labeledExercises,
+        });
+        
+        // Skip all exercises in this superset group
+        i += groupExercises.length;
+      } else {
+        // Standalone exercise
+        groups.push({
+          id: exercise.id,
+          label: currentGroupLabel,
+          exercises: [{ ...exercise, label: currentGroupLabel }],
+        });
+        i++;
+      }
       
-      groups.push({
-        id: `group-${letter}`,
-        label: letter,
-        exercises: labeledExercises as typeof workout.exercises,
-      });
-      
-      groupIndex++;
+      currentGroupLabel = String.fromCharCode(currentGroupLabel.charCodeAt(0) + 1);
     }
     
     return groups;
