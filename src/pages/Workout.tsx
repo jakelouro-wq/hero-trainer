@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Play, Pause, Dumbbell } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
 import { toast } from "sonner";
 import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
@@ -30,6 +30,17 @@ interface ExerciseLog {
   weight: string | null;
 }
 
+interface SessionState {
+  startedAt: number | null; // timestamp when workout started
+  isPaused: boolean;
+  pausedAt: number | null; // timestamp when paused
+  totalPausedMs: number; // accumulated paused time
+  completedExercises: string[];
+  exerciseWeights: Record<string, CompletedSetData[]>;
+}
+
+const getSessionKey = (workoutId: string) => `workout_session_${workoutId}`;
+
 const Workout = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -39,26 +50,69 @@ const Workout = () => {
   const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   
-  // Timer state
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  // Timer state - now based on timestamps for persistence
+  const [sessionState, setSessionState] = useState<SessionState | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionLoaded = useRef(false);
 
-  // Timer effect
+  // Load session from localStorage on mount
   useEffect(() => {
-    if (isTimerRunning) {
-      timerRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
+    if (!id || sessionLoaded.current) return;
+    
+    const stored = localStorage.getItem(getSessionKey(id));
+    if (stored) {
+      try {
+        const parsed: SessionState = JSON.parse(stored);
+        setSessionState(parsed);
+        setCompletedExercises(new Set(parsed.completedExercises));
+        setExerciseWeights(parsed.exerciseWeights);
+      } catch (e) {
+        console.error("Failed to parse session state:", e);
+      }
+    }
+    sessionLoaded.current = true;
+  }, [id]);
+
+  // Save session to localStorage whenever state changes
+  const saveSession = useCallback((state: SessionState) => {
+    if (!id) return;
+    localStorage.setItem(getSessionKey(id), JSON.stringify(state));
+  }, [id]);
+
+  // Calculate elapsed time based on timestamps
+  useEffect(() => {
+    const calculateElapsed = () => {
+      if (!sessionState?.startedAt) {
+        setElapsedSeconds(0);
+        return;
+      }
+      
+      const now = Date.now();
+      let elapsed = now - sessionState.startedAt - sessionState.totalPausedMs;
+      
+      // If currently paused, subtract time since pause started
+      if (sessionState.isPaused && sessionState.pausedAt) {
+        elapsed -= (now - sessionState.pausedAt);
+      }
+      
+      setElapsedSeconds(Math.max(0, Math.floor(elapsed / 1000)));
+    };
+
+    calculateElapsed();
+    
+    // Only run interval if workout is active and not paused
+    if (sessionState?.startedAt && !sessionState.isPaused) {
+      timerRef.current = setInterval(calculateElapsed, 1000);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isTimerRunning]);
+  }, [sessionState?.startedAt, sessionState?.isPaused, sessionState?.pausedAt, sessionState?.totalPausedMs]);
+
+  const hasStarted = !!sessionState?.startedAt;
+  const isTimerRunning = hasStarted && !sessionState?.isPaused;
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -71,12 +125,44 @@ const Workout = () => {
   };
 
   const startWorkout = () => {
-    setHasStarted(true);
-    setIsTimerRunning(true);
+    const newState: SessionState = {
+      startedAt: Date.now(),
+      isPaused: false,
+      pausedAt: null,
+      totalPausedMs: 0,
+      completedExercises: [],
+      exerciseWeights: {},
+    };
+    setSessionState(newState);
+    saveSession(newState);
   };
 
   const toggleTimer = () => {
-    setIsTimerRunning(!isTimerRunning);
+    if (!sessionState) return;
+    
+    const now = Date.now();
+    let newState: SessionState;
+    
+    if (sessionState.isPaused) {
+      // Resuming - add paused duration to total
+      const pausedDuration = sessionState.pausedAt ? now - sessionState.pausedAt : 0;
+      newState = {
+        ...sessionState,
+        isPaused: false,
+        pausedAt: null,
+        totalPausedMs: sessionState.totalPausedMs + pausedDuration,
+      };
+    } else {
+      // Pausing
+      newState = {
+        ...sessionState,
+        isPaused: true,
+        pausedAt: now,
+      };
+    }
+    
+    setSessionState(newState);
+    saveSession(newState);
   };
 
   const { data: workout, isLoading } = useQuery({
@@ -154,6 +240,24 @@ const Workout = () => {
       } else {
         next.delete(exerciseId);
       }
+      
+      // Update session state and persist
+      const newCompleted = Array.from(next);
+      const newWeights = {
+        ...exerciseWeights,
+        [exerciseId]: completedSets,
+      };
+      
+      if (sessionState) {
+        const newState: SessionState = {
+          ...sessionState,
+          completedExercises: newCompleted,
+          exerciseWeights: newWeights,
+        };
+        setSessionState(newState);
+        saveSession(newState);
+      }
+      
       return next;
     });
     setExerciseWeights((prev) => ({
@@ -382,9 +486,6 @@ const Workout = () => {
             disabled={progress < 100}
             onClick={async () => {
               if (progress === 100 && id && user) {
-                // Stop timer and save duration
-                setIsTimerRunning(false);
-                
                 const { error } = await supabase
                   .from("user_workouts")
                   .update({
@@ -397,12 +498,14 @@ const Workout = () => {
                 if (error) {
                   toast.error("Failed to save workout");
                 } else {
+                  // Clear session from localStorage
+                  localStorage.removeItem(getSessionKey(id));
+                  
                   // Reschedule remaining workouts to maintain weekday pattern
                   try {
                     await rescheduleRemainingWorkouts(user.id, id);
                   } catch (rescheduleError) {
                     console.error("Failed to reschedule workouts:", rescheduleError);
-                    // Don't show error to user - this is a background operation
                   }
                   
                   toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
