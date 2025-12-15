@@ -1,23 +1,35 @@
 import { useMemo, useState } from "react";
 import { startOfWeek, addDays, format, isToday } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useManualActivities, useDeleteManualActivity, ACTIVITY_TYPES } from "@/hooks/useManualActivities";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar } from "lucide-react";
+import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar, Eye, CalendarDays, MoreVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const WeeklyCalendar = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [rescheduleWorkoutId, setRescheduleWorkoutId] = useState<string | null>(null);
+  const [newScheduleDate, setNewScheduleDate] = useState<Date | undefined>(undefined);
   
   // Get the start of the current week (Monday)
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
@@ -85,6 +97,57 @@ const WeeklyCalendar = () => {
       toast({ title: "Activity deleted" });
     } catch (error) {
       toast({ title: "Error deleting activity", variant: "destructive" });
+    }
+  };
+
+  // Delete workout mutation
+  const deleteWorkout = useMutation({
+    mutationFn: async (workoutId: string) => {
+      const { error } = await supabase
+        .from("user_workouts")
+        .delete()
+        .eq("id", workoutId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-workouts"] });
+      toast({ title: "Workout deleted" });
+    },
+    onError: (error) => {
+      toast({ title: "Error deleting workout", variant: "destructive" });
+    },
+  });
+
+  // Reschedule workout mutation
+  const rescheduleWorkout = useMutation({
+    mutationFn: async ({ workoutId, newDate }: { workoutId: string; newDate: string }) => {
+      const { error } = await supabase
+        .from("user_workouts")
+        .update({ scheduled_date: newDate })
+        .eq("id", workoutId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-workouts"] });
+      setRescheduleWorkoutId(null);
+      setNewScheduleDate(undefined);
+      toast({ title: "Workout rescheduled" });
+    },
+    onError: (error) => {
+      toast({ title: "Error rescheduling workout", variant: "destructive" });
+    },
+  });
+
+  const handleReschedule = (workoutId: string) => {
+    setRescheduleWorkoutId(workoutId);
+  };
+
+  const confirmReschedule = () => {
+    if (rescheduleWorkoutId && newScheduleDate) {
+      rescheduleWorkout.mutate({
+        workoutId: rescheduleWorkoutId,
+        newDate: format(newScheduleDate, "yyyy-MM-dd"),
+      });
     }
   };
 
@@ -174,7 +237,7 @@ const WeeklyCalendar = () => {
                         className="p-3 bg-secondary/50 rounded-lg border border-border"
                       >
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <p className="font-medium text-foreground">
                               {workout.workout_templates?.title || "Workout"}
                             </p>
@@ -197,6 +260,58 @@ const WeeklyCalendar = () => {
                                 Duration: {Math.floor(workout.duration_seconds / 60)}m {workout.duration_seconds % 60}s
                               </p>
                             )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedDate(null);
+                                navigate(`/workout/${workout.id}`);
+                              }}
+                              className="h-8 w-8"
+                              title="View workout"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Reschedule"
+                                >
+                                  <CalendarDays className="w-4 h-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={rescheduleWorkoutId === workout.id ? newScheduleDate : undefined}
+                                  onSelect={(date) => {
+                                    if (date) {
+                                      rescheduleWorkout.mutate({
+                                        workoutId: workout.id,
+                                        newDate: format(date, "yyyy-MM-dd"),
+                                      });
+                                    }
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteWorkout.mutate(workout.id)}
+                              disabled={deleteWorkout.isPending}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Delete workout"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
