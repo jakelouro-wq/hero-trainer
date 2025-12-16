@@ -59,7 +59,7 @@ const Workout = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionLoaded = useRef(false);
 
-  // Load session from localStorage on mount
+  // Load session from localStorage on mount, or create empty one
   useEffect(() => {
     if (!id || sessionLoaded.current) return;
     
@@ -73,7 +73,30 @@ const Workout = () => {
         setSwappedExercises(parsed.swappedExercises || {});
       } catch (e) {
         console.error("Failed to parse session state:", e);
+        // Create fresh session on parse error
+        const freshSession: SessionState = {
+          startedAt: null,
+          isPaused: false,
+          pausedAt: null,
+          totalPausedMs: 0,
+          completedExercises: [],
+          exerciseWeights: {},
+          swappedExercises: {},
+        };
+        setSessionState(freshSession);
       }
+    } else {
+      // No stored session - create an empty one so we can save data immediately
+      const freshSession: SessionState = {
+        startedAt: null,
+        isPaused: false,
+        pausedAt: null,
+        totalPausedMs: 0,
+        completedExercises: [],
+        exerciseWeights: {},
+        swappedExercises: {},
+      };
+      setSessionState(freshSession);
     }
     sessionLoaded.current = true;
   }, [id]);
@@ -83,6 +106,32 @@ const Workout = () => {
     if (!id) return;
     localStorage.setItem(getSessionKey(id), JSON.stringify(state));
   }, [id]);
+
+  // Force save when app is backgrounded or visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && sessionState && id) {
+        // Force immediate save when app goes to background
+        localStorage.setItem(getSessionKey(id), JSON.stringify(sessionState));
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (sessionState && id) {
+        localStorage.setItem(getSessionKey(id), JSON.stringify(sessionState));
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+    };
+  }, [sessionState, id]);
 
   // Calculate elapsed time based on timestamps
   useEffect(() => {
