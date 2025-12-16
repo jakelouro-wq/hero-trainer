@@ -658,88 +658,9 @@ const Workout = () => {
             </div>
           )}
         </div>
-        {!isCompletedWorkout && (
-          <>
-            {/* Complete Button */}
-            <div className="mt-8 pb-8">
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
-                disabled={progress < 100}
-                onClick={async () => {
-                  if (progress === 100 && id && user) {
-                    const completedAt = new Date().toISOString();
-
-                    // Save exercise logs to the database
-                    const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
-                      ([exerciseId, sets]) =>
-                        sets.map((set, index) => ({
-                          user_id: user.id,
-                          user_workout_id: id,
-                          exercise_id: exerciseId,
-                          set_number: index + 1,
-                          reps: set.reps || "0",
-                          weight: set.weight || null,
-                          completed_at: completedAt,
-                          swapped_exercise_name: swappedExercises[exerciseId] || null,
-                        }))
-                    );
-
-                    // Warn if no exercise data to save
-                    if (exerciseLogsToInsert.length === 0) {
-                      console.warn("No exercise logs to save - exerciseWeights:", exerciseWeights);
-                      toast.warning("No exercise data was logged. Your workout will be saved without set details.");
-                    }
-
-                    if (exerciseLogsToInsert.length > 0) {
-                      const { error: logsError } = await supabase
-                        .from("exercise_logs")
-                        .insert(exerciseLogsToInsert);
-
-                      if (logsError) {
-                        console.error("Failed to save exercise logs:", logsError);
-                        toast.error("Failed to save exercise logs");
-                        return;
-                      }
-                    }
-
-                    const { error } = await supabase
-                      .from("user_workouts")
-                      .update({
-                        completed: true,
-                        completed_at: completedAt,
-                        duration_seconds: elapsedSeconds,
-                      })
-                      .eq("id", id);
-
-                    if (error) {
-                      toast.error("Failed to save workout");
-                    } else {
-                      // Clear session from localStorage
-                      localStorage.removeItem(getSessionKey(id));
-
-                      // Reschedule remaining workouts to maintain weekday pattern
-                      try {
-                        await rescheduleRemainingWorkouts(user.id, id);
-                      } catch (rescheduleError) {
-                        console.error("Failed to reschedule workouts:", rescheduleError);
-                      }
-
-                      toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
-                      queryClient.invalidateQueries({ queryKey: ["next-workout"] });
-                      queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
-                      queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
-                      queryClient.invalidateQueries({ queryKey: ["user-stats"] });
-                      queryClient.invalidateQueries({ queryKey: ["personal-records"] });
-                      navigate("/");
-                    }
-                  }
-                }}
-              >
-                {progress < 100 ? `Complete All Exercises (${progress}%)` : "Finish Workout"}
-              </Button>
-            </div>
-          </>
-        )}
+        
+        {/* Spacer for sticky button */}
+        {!isCompletedWorkout && <div className="h-24" />}
 
         {/* Manual Exercise Log Entry Dialog */}
         {showManualEntry && workout?.exercises && id && user && (
@@ -752,6 +673,89 @@ const Workout = () => {
           />
         )}
       </div>
+
+      {/* Sticky Finish Workout Button */}
+      {!isCompletedWorkout && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border z-40">
+          <div className="container mx-auto max-w-2xl">
+            <Button
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
+              disabled={progress < 100}
+              onClick={async () => {
+                if (progress === 100 && id && user) {
+                  const completedAt = new Date().toISOString();
+
+                  // Save exercise logs to the database
+                  const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
+                    ([exerciseId, sets]) =>
+                      sets.map((set, index) => ({
+                        user_id: user.id,
+                        user_workout_id: id,
+                        exercise_id: exerciseId,
+                        set_number: index + 1,
+                        reps: set.reps || "0",
+                        weight: set.weight || null,
+                        completed_at: completedAt,
+                        swapped_exercise_name: swappedExercises[exerciseId] || null,
+                      }))
+                  );
+
+                  // Warn if no exercise data to save
+                  if (exerciseLogsToInsert.length === 0) {
+                    console.warn("No exercise logs to save - exerciseWeights:", exerciseWeights);
+                    toast.warning("No exercise data was logged. Your workout will be saved without set details.");
+                  }
+
+                  if (exerciseLogsToInsert.length > 0) {
+                    const { error: logsError } = await supabase
+                      .from("exercise_logs")
+                      .insert(exerciseLogsToInsert);
+
+                    if (logsError) {
+                      console.error("Failed to save exercise logs:", logsError);
+                      toast.error("Failed to save exercise logs");
+                      return;
+                    }
+                  }
+
+                  const { error } = await supabase
+                    .from("user_workouts")
+                    .update({
+                      completed: true,
+                      completed_at: completedAt,
+                      duration_seconds: elapsedSeconds,
+                    })
+                    .eq("id", id);
+
+                  if (error) {
+                    toast.error("Failed to save workout");
+                  } else {
+                    // Clear session from localStorage
+                    localStorage.removeItem(getSessionKey(id));
+
+                    // Reschedule remaining workouts to maintain weekday pattern
+                    try {
+                      await rescheduleRemainingWorkouts(user.id, id);
+                    } catch (rescheduleError) {
+                      console.error("Failed to reschedule workouts:", rescheduleError);
+                    }
+
+                    toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
+                    queryClient.invalidateQueries({ queryKey: ["next-workout"] });
+                    queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
+                    queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
+                    queryClient.invalidateQueries({ queryKey: ["user-stats"] });
+                    queryClient.invalidateQueries({ queryKey: ["personal-records"] });
+                    navigate("/");
+                  }
+                }
+              }}
+            >
+              {progress < 100 ? `Complete All Exercises (${progress}%)` : "Finish Workout"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
