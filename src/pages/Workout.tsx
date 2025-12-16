@@ -650,8 +650,8 @@ const Workout = () => {
             ))}
           </div>
 
-          {/* Manual Entry Button for Completed Workouts with Missing Data */}
-          {hasMissingLogs && (
+          {/* Manual Entry / Editing for Completed Workouts */}
+          {isCompletedWorkout && (
             <div className="mt-6">
               <Button
                 onClick={() => setShowManualEntry(true)}
@@ -659,7 +659,7 @@ const Workout = () => {
                 className="w-full border-primary text-primary hover:bg-primary/10"
               >
                 <PlusCircle className="w-4 h-4 mr-2" />
-                Add Missing Exercise Data
+                {hasMissingLogs ? "Add Exercise Data" : "Edit Exercise Data"}
               </Button>
             </div>
           )}
@@ -675,7 +675,14 @@ const Workout = () => {
             onOpenChange={setShowManualEntry}
             workoutId={id}
             userId={user.id}
-            exercises={workout.exercises.map((ex) => ({ id: ex.id, name: ex.name }))}
+            exercises={workout.exercises.map((ex) => ({
+              id: ex.id,
+              name: swappedExercises[ex.id] || ex.name,
+            }))}
+            existingLogs={workout.workoutLogs || []}
+            mode={hasMissingLogs ? "add_missing" : "edit"}
+            completedAt={workout.completed_at ?? null}
+            swappedExerciseNames={swappedExercises}
           />
         )}
       </div>
