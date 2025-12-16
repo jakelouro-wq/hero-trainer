@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Play, Pause, Dumbbell, PlusCircle } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
-import ManualExerciseLogEntry from "@/components/ManualExerciseLogEntry";
 import { toast } from "sonner";
 import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
 
@@ -386,14 +385,8 @@ const Workout = () => {
 
   // Determine if this is a completed workout (viewing history)
   const isCompletedWorkout = workout?.completed === true;
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  
-  // Auto-open edit modal if ?edit=true is in URL
-  useEffect(() => {
-    if (searchParams.get('edit') === 'true' && isCompletedWorkout) {
-      setShowManualEntry(true);
-    }
-  }, [searchParams, isCompletedWorkout]);
+  const isEditMode = searchParams.get('edit') === 'true' && isCompletedWorkout;
+  const [isSaving, setIsSaving] = useState(false);
   
   // Check if workout has any logged sets
   const hasMissingLogs = isCompletedWorkout && (!workout?.workoutLogs || workout.workoutLogs.length === 0);
@@ -416,6 +409,21 @@ const Workout = () => {
 
     return result;
   }, [isCompletedWorkout, workout?.workoutLogs]);
+
+  // Initialize exerciseWeights from saved data when entering edit mode
+  useEffect(() => {
+    if (isEditMode && Object.keys(savedSetsDataByExercise).length > 0 && Object.keys(exerciseWeights).length === 0) {
+      const converted: Record<string, CompletedSetData[]> = {};
+      Object.entries(savedSetsDataByExercise).forEach(([exerciseId, sets]) => {
+        converted[exerciseId] = sets.map(s => ({
+          reps: s.reps,
+          weight: s.weight,
+          completed: true,
+        }));
+      });
+      setExerciseWeights(converted);
+    }
+  }, [isEditMode, savedSetsDataByExercise]);
 
 
   // Calculate saved total weight for completed workouts
@@ -635,11 +643,11 @@ const Workout = () => {
                 onToggleExpand={() =>
                   setExpandedGroupId(expandedGroupId === group.id ? null : group.id)
                 }
-                onComplete={isCompletedWorkout ? () => {} : handleExerciseComplete}
-                onSwap={isCompletedWorkout ? undefined : handleExerciseSwap}
-                readOnly={isCompletedWorkout}
+                onComplete={isCompletedWorkout && !isEditMode ? () => {} : handleExerciseComplete}
+                onSwap={isCompletedWorkout && !isEditMode ? undefined : handleExerciseSwap}
+                readOnly={isCompletedWorkout && !isEditMode}
                 initialSetsDataByExercise={
-                  isCompletedWorkout
+                  isCompletedWorkout && !isEditMode
                     ? (savedSetsDataByExercise as any)
                     : (Object.keys(exerciseWeights).length > 0
                         ? (Object.fromEntries(
@@ -658,11 +666,11 @@ const Workout = () => {
             ))}
           </div>
 
-          {/* Manual Entry / Editing for Completed Workouts */}
-          {isCompletedWorkout && (
+          {/* Edit button for completed workouts (not in edit mode) */}
+          {isCompletedWorkout && !isEditMode && (
             <div className="mt-6">
               <Button
-                onClick={() => setShowManualEntry(true)}
+                onClick={() => navigate(`/workout/${id}?edit=true`)}
                 variant="outline"
                 className="w-full border-primary text-primary hover:bg-primary/10"
               >
@@ -674,26 +682,80 @@ const Workout = () => {
         </div>
         
         {/* Spacer for sticky button */}
-        {!isCompletedWorkout && <div className="h-44" />}
-
-        {/* Manual Exercise Log Entry Dialog */}
-        {showManualEntry && workout?.exercises && id && user && (
-          <ManualExerciseLogEntry
-            open={showManualEntry}
-            onOpenChange={setShowManualEntry}
-            workoutId={id}
-            userId={user.id}
-            exercises={workout.exercises.map((ex) => ({
-              id: ex.id,
-              name: swappedExercises[ex.id] || ex.name,
-            }))}
-            existingLogs={workout.workoutLogs || []}
-            mode={hasMissingLogs ? "add_missing" : "edit"}
-            completedAt={workout.completed_at ?? null}
-            swappedExerciseNames={swappedExercises}
-          />
-        )}
+        {(!isCompletedWorkout || isEditMode) && <div className="h-44" />}
       </div>
+
+      {/* Sticky Save Changes Button for Edit Mode */}
+      {isEditMode && (
+        <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border z-40">
+          <div className="container mx-auto max-w-2xl flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => navigate(`/workout/${id}`)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              disabled={isSaving}
+              onClick={async () => {
+                if (!id || !user) return;
+                setIsSaving(true);
+                
+                try {
+                  // Delete existing logs for this workout
+                  const { error: deleteError } = await supabase
+                    .from("exercise_logs")
+                    .delete()
+                    .eq("user_workout_id", id);
+                  
+                  if (deleteError) {
+                    toast.error("Failed to update workout data");
+                    return;
+                  }
+                  
+                  // Insert updated logs
+                  const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
+                    ([exerciseId, sets]) =>
+                      sets.filter(s => s.reps || s.weight).map((set, index) => ({
+                        user_id: user.id,
+                        user_workout_id: id,
+                        exercise_id: exerciseId,
+                        set_number: index + 1,
+                        reps: set.reps || "0",
+                        weight: set.weight || null,
+                        completed_at: workout?.completed_at || new Date().toISOString(),
+                        swapped_exercise_name: swappedExercises[exerciseId] || null,
+                      }))
+                  );
+                  
+                  if (exerciseLogsToInsert.length > 0) {
+                    const { error: insertError } = await supabase
+                      .from("exercise_logs")
+                      .insert(exerciseLogsToInsert);
+                    
+                    if (insertError) {
+                      toast.error("Failed to save exercise data");
+                      return;
+                    }
+                  }
+                  
+                  toast.success("Workout updated successfully");
+                  queryClient.invalidateQueries({ queryKey: ["workout", id] });
+                  queryClient.invalidateQueries({ queryKey: ["user-stats"] });
+                  queryClient.invalidateQueries({ queryKey: ["personal-records"] });
+                  navigate(`/workout/${id}`);
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Sticky Finish Workout Button */}
       {!isCompletedWorkout && (
