@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar, Eye, CalendarDays, Expand, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar, Eye, CalendarDays, Expand, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -312,6 +312,20 @@ const WeeklyCalendar = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
+                            {workout.completed && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedDate(null);
+                                  navigate(`/workout/${workout.id}?edit=true`);
+                                }}
+                                className="h-8 w-8"
+                                title="Edit workout data"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button
