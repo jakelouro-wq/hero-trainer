@@ -11,6 +11,15 @@ export const useUserStats = () => {
     queryFn: async () => {
       if (!user?.id) return null;
 
+      // Get user's weight unit preference
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("weight_unit")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const userWeightUnit = profile?.weight_unit || "lb";
+
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
@@ -119,8 +128,13 @@ export const useUserStats = () => {
         }
       }
 
+      // Convert to pounds if user logs in kg
+      const totalInPounds = userWeightUnit === "kg" 
+        ? totalWeightLiftedWeek * 2.20462 
+        : totalWeightLiftedWeek;
+
       return {
-        totalWeightLiftedWeek: Math.round(totalWeightLiftedWeek),
+        totalWeightLiftedWeek: Math.round(totalInPounds),
         workoutsThisWeek: workoutsThisWeek || 0,
         newRecordsThisWeek,
         programProgress,
