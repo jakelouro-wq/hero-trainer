@@ -101,25 +101,45 @@ const Workout = () => {
     sessionLoaded.current = true;
   }, [id]);
 
-  // Save session to localStorage whenever state changes
-  const saveSession = useCallback((state: SessionState) => {
-    if (!id) return;
-    localStorage.setItem(getSessionKey(id), JSON.stringify(state));
-  }, [id]);
+  // Save session to localStorage
+  const saveSession = useCallback(
+    (state: SessionState) => {
+      if (!id) return;
+      localStorage.setItem(getSessionKey(id), JSON.stringify(state));
+    },
+    [id]
+  );
 
-  // Force save when app is backgrounded or visibility changes
+  // Build a snapshot that includes the latest inputs (reps/weight/checkboxes/swaps)
+  const getSessionSnapshot = useCallback((): SessionState | null => {
+    if (!sessionState) return null;
+
+    return {
+      ...sessionState,
+      completedExercises: Array.from(completedExercises),
+      exerciseWeights,
+      swappedExercises,
+    };
+  }, [sessionState, completedExercises, exerciseWeights, swappedExercises]);
+
+  // Auto-save on EVERY change (including each input keystroke)
+  useEffect(() => {
+    const snapshot = getSessionSnapshot();
+    if (!snapshot) return;
+    saveSession(snapshot);
+  }, [getSessionSnapshot, saveSession]);
+
+  // Force save when app is backgrounded or closed
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && sessionState && id) {
-        // Force immediate save when app goes to background
-        localStorage.setItem(getSessionKey(id), JSON.stringify(sessionState));
-      }
+      if (document.visibilityState !== "hidden") return;
+      const snapshot = getSessionSnapshot();
+      if (snapshot) saveSession(snapshot);
     };
 
     const handleBeforeUnload = () => {
-      if (sessionState && id) {
-        localStorage.setItem(getSessionKey(id), JSON.stringify(sessionState));
-      }
+      const snapshot = getSessionSnapshot();
+      if (snapshot) saveSession(snapshot);
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -131,7 +151,7 @@ const Workout = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("pagehide", handleBeforeUnload);
     };
-  }, [sessionState, id]);
+  }, [getSessionSnapshot, saveSession]);
 
   // Calculate elapsed time based on timestamps
   useEffect(() => {
@@ -178,43 +198,45 @@ const Workout = () => {
   };
 
   const startWorkout = () => {
+    // IMPORTANT: don't wipe already-entered data; only start the timer
     const newState: SessionState = {
       startedAt: Date.now(),
       isPaused: false,
       pausedAt: null,
       totalPausedMs: 0,
-      completedExercises: [],
-      exerciseWeights: {},
-      swappedExercises: {},
+      completedExercises: Array.from(completedExercises),
+      exerciseWeights,
+      swappedExercises,
     };
     setSessionState(newState);
     saveSession(newState);
   };
 
   const toggleTimer = () => {
-    if (!sessionState) return;
-    
+    const base = getSessionSnapshot();
+    if (!base) return;
+
     const now = Date.now();
     let newState: SessionState;
-    
-    if (sessionState.isPaused) {
+
+    if (base.isPaused) {
       // Resuming - add paused duration to total
-      const pausedDuration = sessionState.pausedAt ? now - sessionState.pausedAt : 0;
+      const pausedDuration = base.pausedAt ? now - base.pausedAt : 0;
       newState = {
-        ...sessionState,
+        ...base,
         isPaused: false,
         pausedAt: null,
-        totalPausedMs: sessionState.totalPausedMs + pausedDuration,
+        totalPausedMs: base.totalPausedMs + pausedDuration,
       };
     } else {
       // Pausing
       newState = {
-        ...sessionState,
+        ...base,
         isPaused: true,
         pausedAt: now,
       };
     }
-    
+
     setSessionState(newState);
     saveSession(newState);
   };
@@ -316,57 +338,41 @@ const Workout = () => {
     }
   }, [workout?.savedSwappedExercises]);
 
-  const handleExerciseComplete = (exerciseId: string, isComplete: boolean, completedSets: CompletedSetData[]) => {
-    setCompletedExercises((prev) => {
-      const next = new Set(prev);
-      if (isComplete) {
-        next.add(exerciseId);
-      } else {
-        next.delete(exerciseId);
-      }
-      
-      // Update session state and persist
-      const newCompleted = Array.from(next);
-      const newWeights = {
-        ...exerciseWeights,
+  const handleExerciseComplete = useCallback(
+    (exerciseId: string, isComplete: boolean, completedSets: CompletedSetData[]) => {
+      // Always store the latest inputs, even if the exercise isn't marked complete yet
+      setExerciseWeights((prev) => ({
+        ...prev,
         [exerciseId]: completedSets,
-      };
-      
-      if (sessionState) {
-        const newState: SessionState = {
-          ...sessionState,
-          completedExercises: newCompleted,
-          exerciseWeights: newWeights,
-        };
-        setSessionState(newState);
-        saveSession(newState);
-      }
-      
-      return next;
-    });
-    setExerciseWeights((prev) => ({
-      ...prev,
-      [exerciseId]: completedSets,
-    }));
-  };
+      }));
+
+      setCompletedExercises((prev) => {
+        const already = prev.has(exerciseId);
+        if (isComplete && already) return prev;
+        if (!isComplete && !already) return prev;
+
+        const next = new Set(prev);
+        if (isComplete) next.add(exerciseId);
+        else next.delete(exerciseId);
+        return next;
+      });
+    },
+    []
+  );
 
   // Handle exercise swap
-  const handleExerciseSwap = (exerciseId: string, newExercise: { name: string; videoUrl: string | null; isQuickAdd: boolean }) => {
-    setSwappedExercises((prev) => {
-      const updated = { ...prev, [exerciseId]: newExercise.name };
-      
-      if (sessionState) {
-        const newState: SessionState = {
-          ...sessionState,
-          swappedExercises: updated,
-        };
-        setSessionState(newState);
-        saveSession(newState);
-      }
-      
-      return updated;
-    });
-  };
+  const handleExerciseSwap = useCallback(
+    (
+      exerciseId: string,
+      newExercise: { name: string; videoUrl: string | null; isQuickAdd: boolean }
+    ) => {
+      setSwappedExercises((prev) => ({
+        ...prev,
+        [exerciseId]: newExercise.name,
+      }));
+    },
+    []
+  );
 
   // Calculate total weight lifted from all completed sets
   const totalWeightLifted = Object.values(exerciseWeights).reduce((total, sets) => {
