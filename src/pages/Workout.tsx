@@ -666,7 +666,7 @@ const Workout = () => {
         </div>
         
         {/* Spacer for sticky button */}
-        {!isCompletedWorkout && <div className="h-24" />}
+        {!isCompletedWorkout && <div className="h-44" />}
 
         {/* Manual Exercise Log Entry Dialog */}
         {showManualEntry && workout?.exercises && id && user && (
@@ -682,7 +682,7 @@ const Workout = () => {
 
       {/* Sticky Finish Workout Button */}
       {!isCompletedWorkout && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border z-40">
+        <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border z-40">
           <div className="container mx-auto max-w-2xl">
             <Button
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
