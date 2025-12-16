@@ -15,26 +15,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasInitialized = useState(false);
+  const hasInitializedRef = { current: hasInitialized[0] };
+  const setHasInitialized = hasInitialized[1];
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    let isMounted = true;
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Set up auth state listener FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+
+      // Avoid marking "loading=false" until after the initial getSession() completes.
+      // This prevents ProtectedRoute from redirecting during boot (which can wipe in-progress UI state).
+      if (hasInitializedRef.current) {
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // THEN check for existing session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!isMounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        setHasInitialized(true);
+        hasInitializedRef.current = true;
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setHasInitialized(true);
+        hasInitializedRef.current = true;
+        setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
+
 
   const signOut = async () => {
     await supabase.auth.signOut();
