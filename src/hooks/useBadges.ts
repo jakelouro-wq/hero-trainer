@@ -129,6 +129,15 @@ export const useUserStats = () => {
     queryFn: async () => {
       if (!user?.id) return null;
 
+      // Get user's weight unit preference
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("weight_unit")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const userWeightUnit = profile?.weight_unit || "lb";
+
       // Total weight lifted all time
       const { data: exerciseLogs } = await supabase
         .from("exercise_logs")
@@ -144,6 +153,11 @@ export const useUserStats = () => {
             totalWeightLifted += weight * reps;
           }
         });
+      }
+
+      // Convert to pounds if user logs in kg
+      if (userWeightUnit === "kg") {
+        totalWeightLifted = totalWeightLifted * 2.20462;
       }
 
       // Total workouts completed

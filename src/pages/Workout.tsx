@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
 import { toast } from "sonner";
 import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
+import { useWeightUnit } from "@/hooks/useWeightUnit";
 
 interface Exercise {
   id: string;
@@ -47,6 +48,7 @@ const Workout = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { weightUnit } = useWeightUnit();
   const queryClient = useQueryClient();
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
@@ -436,8 +438,9 @@ const Workout = () => {
     }, 0);
   }, [isCompletedWorkout, workout?.workoutLogs]);
 
-  // Display either active or saved total weight
-  const displayedTotalWeight = isCompletedWorkout ? savedTotalWeight : totalWeightLifted;
+  // Display either active or saved total weight, converted to lbs if user logs in kg
+  const rawTotalWeight = isCompletedWorkout ? savedTotalWeight : totalWeightLifted;
+  const displayedTotalWeight = weightUnit === "kg" ? rawTotalWeight * 2.20462 : rawTotalWeight;
 
   // Group exercises by superset_group from database
   const exerciseGroups = useMemo(() => {
