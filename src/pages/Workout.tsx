@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +45,7 @@ const getSessionKey = (workoutId: string) => `workout_session_${workoutId}`;
 
 const Workout = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -386,6 +387,13 @@ const Workout = () => {
   // Determine if this is a completed workout (viewing history)
   const isCompletedWorkout = workout?.completed === true;
   const [showManualEntry, setShowManualEntry] = useState(false);
+  
+  // Auto-open edit modal if ?edit=true is in URL
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && isCompletedWorkout) {
+      setShowManualEntry(true);
+    }
+  }, [searchParams, isCompletedWorkout]);
   
   // Check if workout has any logged sets
   const hasMissingLogs = isCompletedWorkout && (!workout?.workoutLogs || workout.workoutLogs.length === 0);
