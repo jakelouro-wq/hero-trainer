@@ -576,7 +576,20 @@ const Workout = () => {
                 onSwap={isCompletedWorkout ? undefined : handleExerciseSwap}
                 readOnly={isCompletedWorkout}
                 initialSetsDataByExercise={
-                  isCompletedWorkout ? (savedSetsDataByExercise as any) : undefined
+                  isCompletedWorkout
+                    ? (savedSetsDataByExercise as any)
+                    : (Object.keys(exerciseWeights).length > 0
+                        ? (Object.fromEntries(
+                            Object.entries(exerciseWeights).map(([exerciseId, sets]) => [
+                              exerciseId,
+                              (sets || []).map((s: any) => ({
+                                reps: s.reps ?? "",
+                                weight: s.weight ?? "",
+                                completed: !!s.completed,
+                              })),
+                            ])
+                          ) as any)
+                        : undefined)
                 }
               />
             ))}

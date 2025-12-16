@@ -22,6 +22,7 @@ interface LastWorkoutData {
 export interface CompletedSetData {
   reps: string;
   weight: string;
+  completed?: boolean;
 }
 
 interface ExerciseData {
@@ -100,7 +101,7 @@ const ExerciseGroupCard = ({
         // Send ALL sets that have any data entered (reps or weight), regardless of checkbox
         const setsWithData = state.setsData
           .filter((s) => s.reps.trim() !== "" || s.weight.trim() !== "")
-          .map((s) => ({ reps: s.reps, weight: s.weight }));
+          .map((s) => ({ reps: s.reps, weight: s.weight, completed: s.completed }));
         onComplete(ex.id, allCompleted, setsWithData);
       }
     });
