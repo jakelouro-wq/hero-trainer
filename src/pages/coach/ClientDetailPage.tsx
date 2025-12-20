@@ -147,6 +147,9 @@ const ClientDetailPage = () => {
     enabled: isCoach && !!clientId && activeTab === "performance",
   });
 
+  // Get client's weight unit preference
+  const clientWeightUnit = client?.weight_unit || "lb";
+
   // Calculate PRs from exercise logs
   const personalRecords = useMemo(() => {
     if (!exerciseLogs) return [];
@@ -161,8 +164,13 @@ const ClientDetailPage = () => {
 
     exerciseLogs.forEach((log) => {
       const exerciseName = log.exercises?.name || "Unknown Exercise";
-      const weight = parseFloat(log.weight || "0") || 0;
+      let weight = parseFloat(log.weight || "0") || 0;
       const reps = parseInt(log.reps || "0") || 0;
+
+      // Convert kg to lbs if client logs in kg
+      if (clientWeightUnit === "kg" && weight > 0) {
+        weight = weight * 2.20462;
+      }
 
       const existing = prMap.get(exerciseName);
       if (!existing) {
@@ -190,7 +198,7 @@ const ClientDetailPage = () => {
     return Array.from(prMap.values()).sort((a, b) => 
       a.exerciseName.localeCompare(b.exerciseName)
     );
-  }, [exerciseLogs]);
+  }, [exerciseLogs, clientWeightUnit]);
 
   // Reschedule workout mutation
   const rescheduleWorkout = useMutation({
@@ -745,7 +753,7 @@ const ClientDetailPage = () => {
                           <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wide">Max Weight</p>
                             <p className="text-lg font-bold text-primary">
-                              {pr.maxWeight > 0 ? `${pr.maxWeight} lbs` : "—"}
+                              {pr.maxWeight > 0 ? `${Math.round(pr.maxWeight)} lbs` : "—"}
                             </p>
                           </div>
                           <div>
