@@ -14,6 +14,7 @@ import ProgramDetailPage from "./pages/coach/ProgramDetailPage";
 import ClientsPage from "./pages/coach/ClientsPage";
 import ClientDetailPage from "./pages/coach/ClientDetailPage";
 import ExercisesPage from "./pages/coach/ExercisesPage";
+import SchedulePage from "./pages/coach/SchedulePage";
 import BadgesPage from "./pages/BadgesPage";
 import CommunityPage from "./pages/CommunityPage";
 import PersonalRecordsPage from "./pages/PersonalRecordsPage";
@@ -72,6 +73,7 @@ const AppRoutes = () => (
     <Route path="/coach/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
     <Route path="/coach/clients/:clientId" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
     <Route path="/coach/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
+    <Route path="/coach/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
