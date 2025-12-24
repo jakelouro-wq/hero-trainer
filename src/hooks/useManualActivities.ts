@@ -13,6 +13,7 @@ export interface ManualActivity {
 }
 
 export const ACTIVITY_TYPES = [
+  { value: "lift", label: "Lift", icon: "🏋️" },
   { value: "tennis", label: "Tennis", icon: "🎾" },
   { value: "padel", label: "Padel", icon: "🎾" },
   { value: "surfing", label: "Surfing", icon: "🏄" },
