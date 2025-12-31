@@ -87,6 +87,17 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Trophy Closet button for mobile */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden text-muted-foreground hover:text-foreground hover:bg-secondary"
+            onClick={() => navigate("/badges")}
+            title="Trophy Closet"
+          >
+            <Trophy className="w-5 h-5" />
+          </Button>
+          
           {isCoach && (
             <Button 
               variant="ghost" 
