@@ -755,7 +755,6 @@ const ProgramDetailPage = () => {
 
   const daysPerWeek = 7; // Always show full week
   const totalWeeks = program?.duration_weeks || 4;
-  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   // Get workouts for current week
   const currentWeekWorkouts = workouts?.filter(w => w.week_number === currentWeek) || [];
@@ -847,17 +846,7 @@ const ProgramDetailPage = () => {
       {/* Calendar Grid */}
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
-          {/* Day Headers - Sticky */}
-          <div className="grid border-b border-border bg-background sticky top-0 z-10" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
-            {dayLabels.map((label) => (
-              <div
-                key={label}
-                className="px-2 py-3 text-center text-sm font-semibold text-foreground border-r border-border last:border-r-0 bg-card"
-              >
-                {label}
-              </div>
-            ))}
-          </div>
+          {/* Day labels are rendered inside each day column */}
 
           {/* Day Columns with Drag and Drop */}
           <DndContext

@@ -55,56 +55,78 @@ export const DroppableDayColumn = ({
   onUnlinkExercise,
   getExerciseLabel,
 }: DroppableDayColumnProps) => {
+  const dayNames = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${day}`,
     data: { day },
   });
 
+  const dayLabel = dayNames[day - 1] ?? `Day ${day}`;
+
   return (
     <div
       ref={setNodeRef}
-      className={`border-r border-border last:border-r-0 min-h-[400px] p-2 space-y-2 transition-colors ${
-        isOver ? 'bg-primary/10 border-primary' : ''
+      className={`border-r border-border last:border-r-0 min-h-[400px] p-2 transition-colors ${
+        isOver ? "bg-primary/10 border-primary" : ""
       }`}
     >
-      {workouts.length === 0 ? (
-        <button
-          onClick={onCreateWorkout}
-          className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
-        >
-          <Plus className="w-4 h-4 mx-auto mb-1" />
-          CREATE SESSION
-        </button>
-      ) : (
-        <>
-          {workouts.map((workout) => (
-            <DraggableWorkoutCard
-              key={workout.id}
-              workout={workout}
-              currentDay={day}
-              daysPerWeek={daysPerWeek}
-              onAddExercise={() => onAddExercise(workout.id)}
-              onEditWorkout={() => onEditWorkout(workout.id)}
-              onDuplicate={() => onDuplicateWorkout(workout.id)}
-              onRepeat={() => onRepeatWorkout(workout.id)}
-              onDelete={() => onDeleteWorkout(workout.id)}
-              onChangeDay={(newDay) => onChangeWorkoutDay(workout.id, newDay)}
-              onEditExercise={onEditExercise}
-              onDeleteExercise={onDeleteExercise}
-              onMoveExercise={(exerciseId, direction) => onMoveExercise(exerciseId, workout.id, direction)}
-              onLinkWithAbove={(exerciseId) => onLinkWithAbove(exerciseId, workout.id)}
-              onUnlinkExercise={(exerciseId) => onUnlinkExercise(exerciseId, workout.id)}
-              getExerciseLabel={getExerciseLabel}
-            />
-          ))}
+      <div className="pb-2">
+        <div className="rounded-md border border-border bg-card px-2 py-2 text-center">
+          <div className="text-xs font-semibold text-foreground">{dayLabel}</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {workouts.length === 0 ? (
           <button
             onClick={onCreateWorkout}
-            className="w-full py-3 text-xs text-muted-foreground hover:text-primary border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+            className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
           >
-            <Plus className="w-3 h-3 mx-auto" />
+            <Plus className="w-4 h-4 mx-auto mb-1" />
+            CREATE SESSION
           </button>
-        </>
-      )}
+        ) : (
+          <>
+            {workouts.map((workout) => (
+              <DraggableWorkoutCard
+                key={workout.id}
+                workout={workout}
+                currentDay={day}
+                daysPerWeek={daysPerWeek}
+                onAddExercise={() => onAddExercise(workout.id)}
+                onEditWorkout={() => onEditWorkout(workout.id)}
+                onDuplicate={() => onDuplicateWorkout(workout.id)}
+                onRepeat={() => onRepeatWorkout(workout.id)}
+                onDelete={() => onDeleteWorkout(workout.id)}
+                onChangeDay={(newDay) => onChangeWorkoutDay(workout.id, newDay)}
+                onEditExercise={onEditExercise}
+                onDeleteExercise={onDeleteExercise}
+                onMoveExercise={(exerciseId, direction) =>
+                  onMoveExercise(exerciseId, workout.id, direction)
+                }
+                onLinkWithAbove={(exerciseId) => onLinkWithAbove(exerciseId, workout.id)}
+                onUnlinkExercise={(exerciseId) => onUnlinkExercise(exerciseId, workout.id)}
+                getExerciseLabel={getExerciseLabel}
+              />
+            ))}
+            <button
+              onClick={onCreateWorkout}
+              className="w-full py-3 text-xs text-muted-foreground hover:text-primary border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+            >
+              <Plus className="w-3 h-3 mx-auto" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };
