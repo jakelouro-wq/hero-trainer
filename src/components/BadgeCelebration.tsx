@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Instagram, Download } from "lucide-react";
+import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import ShareableBadgeCard from "./ShareableBadgeCard";
+import type { Badge } from "@/hooks/useBadges";
 
 interface BadgeCelebrationProps {
-  badge: {
-    name: string;
-    description: string;
-    icon_url: string;
-    category: string;
-  } | null;
+  badge: Badge | null;
   isOpen: boolean;
   onClose: () => void;
+  stats?: {
+    totalWorkouts?: number;
+    totalWeightLifted?: number;
+    currentStreak?: number;
+  };
 }
 
 const Confetti = () => {
@@ -98,8 +103,11 @@ const getCategoryGradient = (category: string) => {
   }
 };
 
-const BadgeCelebration = ({ badge, isOpen, onClose }: BadgeCelebrationProps) => {
+const BadgeCelebration = ({ badge, isOpen, onClose, stats }: BadgeCelebrationProps) => {
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -108,6 +116,86 @@ const BadgeCelebration = ({ badge, isOpen, onClose }: BadgeCelebrationProps) => 
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // Generate shareable image when dialog opens
+  useEffect(() => {
+    if (isOpen && badge) {
+      const generateImage = async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (!cardRef.current) return;
+        
+        try {
+          const canvas = await html2canvas(cardRef.current, {
+            backgroundColor: null,
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+          });
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              setImageBlob(blob);
+            }
+          }, "image/png");
+        } catch (error) {
+          console.error("Failed to generate image:", error);
+        }
+      };
+      
+      generateImage();
+    } else {
+      setImageBlob(null);
+    }
+  }, [isOpen, badge]);
+
+  const handleShareToInstagram = async () => {
+    if (!imageBlob) {
+      toast.error("Image not ready yet, please try again");
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      const file = new File([imageBlob], "louro-badge.png", { type: "image/png" });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+        });
+        toast.success("Opening share menu...");
+      } else {
+        await handleDownload();
+        toast.info("Image saved! Open Instagram Stories and add it from your gallery.");
+      }
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("Share failed:", error);
+        await handleDownload();
+        toast.info("Image saved! Open Instagram Stories and add it from your gallery.");
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!imageBlob) {
+      toast.error("Image not ready yet, please try again");
+      return;
+    }
+
+    const url = URL.createObjectURL(imageBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `louro-badge-${badge?.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Image saved!");
+  };
 
   if (!badge) return null;
 
@@ -154,14 +242,47 @@ const BadgeCelebration = ({ badge, isOpen, onClose }: BadgeCelebrationProps) => 
             </p>
           </div>
 
+          {/* Share Buttons */}
+          <div className="mt-6 w-full space-y-2 animate-fade-in" style={{ animationDelay: "0.7s" }}>
+            <Button
+              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 text-white"
+              onClick={handleShareToInstagram}
+              disabled={isGenerating || !imageBlob}
+            >
+              <Instagram className="w-4 h-4 mr-2" />
+              {isGenerating ? "Preparing..." : "Share to Instagram Stories"}
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleDownload}
+              disabled={!imageBlob}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Save Image
+            </Button>
+          </div>
+
           {/* Continue button */}
           <Button 
+            variant="ghost"
             onClick={onClose} 
-            className="mt-8 px-8 animate-fade-in"
-            style={{ animationDelay: "0.8s" }}
+            className="mt-4 text-muted-foreground animate-fade-in"
+            style={{ animationDelay: "0.9s" }}
           >
-            Awesome!
+            Close
           </Button>
+        </div>
+
+        {/* Hidden shareable card for image generation */}
+        <div className="absolute -left-[9999px] top-0">
+          <ShareableBadgeCard
+            ref={cardRef}
+            badge={badge}
+            earnedAt={new Date()}
+            stats={stats}
+          />
         </div>
       </DialogContent>
     </Dialog>

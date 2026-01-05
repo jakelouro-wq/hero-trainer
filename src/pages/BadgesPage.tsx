@@ -120,7 +120,12 @@ const BadgesPage = () => {
       <BadgeCelebration 
         badge={celebrationBadge} 
         isOpen={!!celebrationBadge} 
-        onClose={handleCloseCelebration} 
+        onClose={handleCloseCelebration}
+        stats={{
+          totalWorkouts: stats?.totalWorkouts,
+          totalWeightLifted: stats?.totalWeightLifted,
+          currentStreak: stats?.currentStreak,
+        }}
       />
 
       <main className="pt-24 pb-12 container mx-auto px-4">
