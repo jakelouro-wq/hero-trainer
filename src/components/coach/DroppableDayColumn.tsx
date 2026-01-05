@@ -23,6 +23,7 @@ interface DroppableDayColumnProps {
   workouts: Workout[];
   onCreateWorkout: () => void;
   onAddExercise: (workoutId: string) => void;
+  onEditWorkout: (workoutId: string) => void;
   onDuplicateWorkout: (workoutId: string) => void;
   onRepeatWorkout: (workoutId: string) => void;
   onDeleteWorkout: (workoutId: string) => void;
@@ -39,6 +40,7 @@ export const DroppableDayColumn = ({
   workouts,
   onCreateWorkout,
   onAddExercise,
+  onEditWorkout,
   onDuplicateWorkout,
   onRepeatWorkout,
   onDeleteWorkout,
@@ -76,6 +78,7 @@ export const DroppableDayColumn = ({
               key={workout.id}
               workout={workout}
               onAddExercise={() => onAddExercise(workout.id)}
+              onEditWorkout={() => onEditWorkout(workout.id)}
               onDuplicate={() => onDuplicateWorkout(workout.id)}
               onRepeat={() => onRepeatWorkout(workout.id)}
               onDelete={() => onDeleteWorkout(workout.id)}

@@ -49,11 +49,17 @@ const ProgramDetailPage = () => {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
+  const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [isExerciseDialogOpen, setIsExerciseDialogOpen] = useState(false);
   const [isEditExerciseDialogOpen, setIsEditExerciseDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [selectedDayForNewWorkout, setSelectedDayForNewWorkout] = useState<number>(1);
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
+  const [editingWorkout, setEditingWorkout] = useState<{
+    id: string;
+    title: string;
+    subtitle: string;
+  } | null>(null);
   const [editingExercise, setEditingExercise] = useState<{
     id: string;
     name: string;
@@ -181,6 +187,29 @@ const ProgramDetailPage = () => {
     },
     onError: (error) => {
       toast.error("Failed to delete workout: " + error.message);
+    },
+  });
+
+  const updateWorkout = useMutation({
+    mutationFn: async () => {
+      if (!editingWorkout) return;
+      const { error } = await supabase
+        .from("workout_templates")
+        .update({
+          title: editingWorkout.title,
+          subtitle: editingWorkout.subtitle || null,
+        })
+        .eq("id", editingWorkout.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      setIsEditWorkoutDialogOpen(false);
+      setEditingWorkout(null);
+      toast.success("Workout updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update workout: " + error.message);
     },
   });
 
@@ -589,6 +618,18 @@ const ProgramDetailPage = () => {
     setIsEditExerciseDialogOpen(true);
   };
 
+  const openEditWorkout = (workoutId: string) => {
+    const workout = workouts?.find((w) => w.id === workoutId);
+    if (workout) {
+      setEditingWorkout({
+        id: workout.id,
+        title: workout.title,
+        subtitle: workout.subtitle || "",
+      });
+      setIsEditWorkoutDialogOpen(true);
+    }
+  };
+
   const openCreateWorkoutForDay = (day: number) => {
     setSelectedDayForNewWorkout(day);
     setNewWorkout({
@@ -787,6 +828,7 @@ const ProgramDetailPage = () => {
                       setSelectedWorkout(workoutId);
                       setIsExerciseDialogOpen(true);
                     }}
+                    onEditWorkout={(workoutId) => openEditWorkout(workoutId)}
                     onDuplicateWorkout={(workoutId) => duplicateWorkout.mutate(workoutId)}
                     onRepeatWorkout={(workoutId) => repeatWorkout.mutate(workoutId)}
                     onDeleteWorkout={(workoutId) => deleteWorkout.mutate(workoutId)}
@@ -873,6 +915,45 @@ const ProgramDetailPage = () => {
               className="w-full bg-primary hover:bg-primary/90"
             >
               {createWorkout.isPending ? "Creating..." : "Create Session"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Workout Dialog */}
+      <Dialog open={isEditWorkoutDialogOpen} onOpenChange={setIsEditWorkoutDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Session</DialogTitle>
+            <DialogDescription>Update the session details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editWorkoutTitle">Session Title</Label>
+              <Input
+                id="editWorkoutTitle"
+                value={editingWorkout?.title || ""}
+                onChange={(e) => setEditingWorkout(prev => prev ? { ...prev, title: e.target.value } : null)}
+                placeholder="e.g., Upper Body Push"
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label htmlFor="editWorkoutSubtitle">Subtitle (optional)</Label>
+              <Input
+                id="editWorkoutSubtitle"
+                value={editingWorkout?.subtitle || ""}
+                onChange={(e) => setEditingWorkout(prev => prev ? { ...prev, subtitle: e.target.value } : null)}
+                placeholder="e.g., Chest & Shoulders"
+                className="bg-secondary border-border"
+              />
+            </div>
+            <Button
+              onClick={() => updateWorkout.mutate()}
+              disabled={!editingWorkout?.title || updateWorkout.isPending}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              {updateWorkout.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogContent>

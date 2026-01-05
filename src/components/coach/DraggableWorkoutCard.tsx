@@ -28,6 +28,7 @@ interface Workout {
 interface DraggableWorkoutCardProps {
   workout: Workout;
   onAddExercise: () => void;
+  onEditWorkout: () => void;
   onDuplicate: () => void;
   onRepeat: () => void;
   onDelete: () => void;
@@ -42,6 +43,7 @@ interface DraggableWorkoutCardProps {
 export const DraggableWorkoutCard = ({
   workout,
   onAddExercise,
+  onEditWorkout,
   onDuplicate,
   onRepeat,
   onDelete,
@@ -100,6 +102,10 @@ export const DraggableWorkoutCard = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-card border-border">
+            <DropdownMenuItem onClick={onEditWorkout}>
+              <GripVertical className="w-4 h-4 mr-2" />
+              Edit Name
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onAddExercise}>
               <Plus className="w-4 h-4 mr-2" />
               Add Exercise
