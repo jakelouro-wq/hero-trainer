@@ -369,10 +369,23 @@ const ClientDetailPage = () => {
       if (program.workout_templates && program.workout_templates.length > 0) {
         const startDateObj = new Date(startDate);
         const workoutsToInsert: any[] = [];
+        const daysPerWeek = program.days_per_week || 3;
+
+        // Map day_number to actual weekday offsets based on days_per_week
+        // This distributes workouts evenly across the week
+        const getDayOffset = (dayNum: number, daysPerWeek: number): number => {
+          if (daysPerWeek === 1) return 0; // Monday only
+          if (daysPerWeek === 2) return dayNum === 1 ? 0 : 3; // Mon, Thu
+          if (daysPerWeek === 3) return dayNum === 1 ? 0 : dayNum === 2 ? 2 : 4; // Mon, Wed, Fri
+          if (daysPerWeek === 4) return dayNum === 1 ? 0 : dayNum === 2 ? 1 : dayNum === 3 ? 3 : 4; // Mon, Tue, Thu, Fri
+          if (daysPerWeek === 5) return dayNum - 1; // Mon-Fri
+          if (daysPerWeek === 6) return dayNum - 1; // Mon-Sat
+          return dayNum - 1; // Default: consecutive days
+        };
 
         program.workout_templates.forEach((template: any) => {
           const weekOffset = (template.week_number - 1) * 7;
-          const dayOffset = template.day_number - 1;
+          const dayOffset = getDayOffset(template.day_number, daysPerWeek);
           const workoutDate = new Date(startDateObj);
           workoutDate.setDate(workoutDate.getDate() + weekOffset + dayOffset);
 
