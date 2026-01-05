@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar, Eye, CalendarDays, Expand, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Trash2, Dumbbell, Clock, CheckCircle2, Calendar, Eye, CalendarDays, Expand, ChevronLeft, ChevronRight, Pencil, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getProgramScheduledDateStr } from "@/lib/programSchedule";
 
 const WeeklyCalendar = () => {
   const { user } = useAuth();
@@ -41,6 +42,25 @@ const WeeklyCalendar = () => {
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
+
+  const { data: assignedProgram } = useQuery({
+    queryKey: ["my-program", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from("client_programs")
+        .select("program_id, start_date")
+        .eq("user_id", user.id)
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   // Fetch user workouts for this week
   const { data: workouts } = useQuery({
@@ -129,6 +149,69 @@ const WeeklyCalendar = () => {
     }
   };
 
+  const rebuildSchedule = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not signed in");
+
+      const { data: clientProgram, error: clientProgramError } = await supabase
+        .from("client_programs")
+        .select("program_id, start_date")
+        .eq("user_id", user.id)
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (clientProgramError) throw clientProgramError;
+      if (!clientProgram?.program_id) throw new Error("No program assigned");
+
+      const { data: templates, error: templatesError } = await supabase
+        .from("workout_templates")
+        .select("id, week_number, day_number")
+        .eq("program_id", clientProgram.program_id);
+
+      if (templatesError) throw templatesError;
+
+      const { error: deleteError } = await supabase
+        .from("user_workouts")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("completed", false);
+
+      if (deleteError) throw deleteError;
+
+      const workoutsToInsert = (templates || []).map((t) => ({
+        user_id: user.id,
+        workout_template_id: t.id,
+        scheduled_date: getProgramScheduledDateStr(
+          clientProgram.start_date,
+          (t.week_number as number) || 1,
+          (t.day_number as number) || 1
+        ),
+        completed: false,
+      }));
+
+      if (workoutsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("user_workouts")
+          .insert(workoutsToInsert);
+
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-workouts"] });
+      toast({ title: "Schedule rebuilt" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't rebuild schedule",
+        description: error?.message || "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete workout mutation
   const deleteWorkout = useMutation({
     mutationFn: async (workoutId: string) => {
@@ -187,19 +270,38 @@ const WeeklyCalendar = () => {
 
   return (
     <>
-      <div className="card-gradient rounded-xl p-4 border border-border opacity-0 animate-fade-in" style={{ animationDelay: "100ms" }}>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm text-muted-foreground">{format(weekStart, "MMMM yyyy")}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowFullCalendar(true)}
-            className="h-8 w-8"
-            title="View full calendar"
-          >
-            <Expand className="w-4 h-4" />
-          </Button>
-        </div>
+        <div className="card-gradient rounded-xl p-4 border border-border opacity-0 animate-fade-in" style={{ animationDelay: "100ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">{format(weekStart, "MMMM yyyy")}</span>
+            <div className="flex items-center gap-1">
+              {assignedProgram?.program_id && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => rebuildSchedule.mutate()}
+                  disabled={rebuildSchedule.isPending}
+                  className="h-8 w-8"
+                  title="Rebuild schedule"
+                >
+                  <RotateCcw
+                    className={cn(
+                      "w-4 h-4",
+                      rebuildSchedule.isPending && "animate-spin"
+                    )}
+                  />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowFullCalendar(true)}
+                className="h-8 w-8"
+                title="View full calendar"
+              >
+                <Expand className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((date, index) => {
