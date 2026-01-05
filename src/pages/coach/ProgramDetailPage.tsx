@@ -243,7 +243,7 @@ const ProgramDetailPage = () => {
       const { data, error } = await supabase.from("exercises").insert({
         name: newExercise.name,
         sets: newExercise.sets,
-        reps: newExercise.reps || "10",
+        reps: newExercise.reps || "",
         weight: newExercise.weight || null,
         notes: newExercise.notes || null,
         video_url: newExercise.video_url || null,
@@ -434,7 +434,7 @@ const ProgramDetailPage = () => {
         .update({
           name: editingExercise.name,
           sets: editingExercise.sets,
-          reps: editingExercise.reps || "10",
+          reps: editingExercise.reps || "",
           weight: editingExercise.weight || null,
           notes: editingExercise.notes || null,
           video_url: editingExercise.video_url || null,
