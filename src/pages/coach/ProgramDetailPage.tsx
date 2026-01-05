@@ -16,22 +16,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Dumbbell, Shield, Video, Pencil, Copy, MoreVertical, ChevronLeft, ChevronRight, Clock, Activity, Link2, Unlink, Image, Repeat, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Shield, ChevronLeft, ChevronRight, Image } from "lucide-react";
 import { toast } from "sonner";
 import ExerciseAutocomplete from "@/components/ExerciseAutocomplete";
 import ProgramImageUpload from "@/components/ProgramImageUpload";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import { DroppableDayColumn } from "@/components/coach/DroppableDayColumn";
 
 const ProgramDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -47,6 +53,7 @@ const ProgramDetailPage = () => {
   const [isEditExerciseDialogOpen, setIsEditExerciseDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [selectedDayForNewWorkout, setSelectedDayForNewWorkout] = useState<number>(1);
+  const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
   const [editingExercise, setEditingExercise] = useState<{
     id: string;
     name: string;
@@ -59,6 +66,16 @@ const ProgramDetailPage = () => {
     rir: string;
     superset_group: string;
   } | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
   const [newWorkout, setNewWorkout] = useState({
     title: "",
     subtitle: "",
@@ -512,6 +529,50 @@ const ProgramDetailPage = () => {
     },
   });
 
+  // Mutation for moving workout to a different day
+  const moveWorkoutToDay = useMutation({
+    mutationFn: async ({ workoutId, newDay }: { workoutId: string; newDay: number }) => {
+      const { error } = await supabase
+        .from("workout_templates")
+        .update({ day_number: newDay })
+        .eq("id", workoutId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
+      toast.success("Workout moved successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to move workout: " + error.message);
+    },
+  });
+
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveWorkoutId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveWorkoutId(null);
+
+    if (!over) return;
+
+    const workoutId = active.id as string;
+    const overId = over.id as string;
+
+    // Check if dropped on a day column
+    if (overId.startsWith('day-')) {
+      const newDay = parseInt(overId.replace('day-', ''));
+      const workout = workouts?.find(w => w.id === workoutId);
+      
+      if (workout && workout.day_number !== newDay) {
+        moveWorkoutToDay.mutate({ workoutId, newDay });
+      }
+    }
+  };
+
   const openEditExercise = (exercise: any) => {
     setEditingExercise({
       id: exercise.id,
@@ -700,234 +761,61 @@ const ProgramDetailPage = () => {
             ))}
           </div>
 
-          {/* Day Columns */}
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
-            {Array.from({ length: daysPerWeek }, (_, dayIdx) => {
-              const day = dayIdx + 1;
-              const dayWorkouts = getWorkoutsForDay(day);
+          {/* Day Columns with Drag and Drop */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
+              {Array.from({ length: daysPerWeek }, (_, dayIdx) => {
+                const day = dayIdx + 1;
+                const dayWorkouts = getWorkoutsForDay(day);
 
-              return (
-                <div
-                  key={day}
-                  className="border-r border-border last:border-r-0 min-h-[400px] p-2 space-y-2"
-                >
-                  {dayWorkouts.length === 0 ? (
-                    <button
-                      onClick={() => openCreateWorkoutForDay(day)}
-                      className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
-                    >
-                      <Plus className="w-4 h-4 mx-auto mb-1" />
-                      CREATE SESSION
-                    </button>
-                  ) : (
-                    dayWorkouts.map((workout) => {
-                      const exercises = (workout.exercises as any[])?.sort((a, b) => a.order_index - b.order_index) || [];
-                      const completedSets = 0; // placeholder
-                      const totalSets = exercises.reduce((sum, ex) => sum + ex.sets, 0);
-
-                      return (
-                        <div
-                          key={workout.id}
-                          className="bg-card border border-border rounded-lg overflow-hidden"
-                        >
-                          {/* Workout Header */}
-                          <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">
-                                CL
-                              </span>
-                              <span className="text-xs font-semibold text-foreground truncate max-w-[100px]">
-                                {workout.title}
-                              </span>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-3 h-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-card border-border">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedWorkout(workout.id);
-                                    setIsExerciseDialogOpen(true);
-                                  }}
-                                >
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add Exercise
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => duplicateWorkout.mutate(workout.id)}>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Copy
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => repeatWorkout.mutate(workout.id)}>
-                                  <Repeat className="w-4 h-4 mr-2" />
-                                  Repeat for remaining weeks
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => deleteWorkout.mutate(workout.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-
-                          {/* Stats Row */}
-                          <div className="flex items-center justify-around px-2 py-2 border-b border-border">
-                            <div className="flex flex-col items-center">
-                              <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
-                                <Activity className="w-3 h-3 text-muted-foreground" />
-                              </div>
-                              <span className="text-[10px] text-muted-foreground mt-0.5">
-                                {completedSets}/{totalSets}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
-                                <Clock className="w-3 h-3 text-muted-foreground" />
-                              </div>
-                              <span className="text-[10px] text-muted-foreground mt-0.5">-</span>
-                            </div>
-                          </div>
-
-                          {/* Exercises */}
-                          <div className="px-2 py-2 space-y-1 max-h-[300px] overflow-y-auto">
-                            {exercises.map((exercise, idx, arr) => {
-                              const label = getExerciseLabel(arr, idx);
-                              const isInSuperset = exercise.superset_group && arr.filter(e => e.superset_group === exercise.superset_group).length > 1;
-                              // Only consider them in the same group if BOTH have a superset_group AND they match
-                              const prevInSameGroup = idx > 0 && exercise.superset_group && arr[idx - 1].superset_group === exercise.superset_group;
-
-                              return (
-                                <div key={exercise.id}>
-                                  {/* Link button between exercises */}
-                                  {idx > 0 && !prevInSameGroup && (
-                                    <div className="flex justify-center py-0.5">
-                                      <button
-                                        onClick={() => linkWithAbove.mutate({ exerciseId: exercise.id, workoutId: workout.id })}
-                                        className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
-                                      >
-                                        <Link2 className="w-2.5 h-2.5" />
-                                        Link
-                                      </button>
-                                    </div>
-                                  )}
-                                  {prevInSameGroup && (
-                                    <div className="flex justify-center py-0.5">
-                                      <div className="h-2 border-l-2 border-primary/50" />
-                                    </div>
-                                  )}
-                                  <div
-                                    className={`flex items-start gap-2 p-1.5 rounded cursor-pointer hover:bg-muted/50 group ${
-                                      isInSuperset ? 'bg-primary/5' : ''
-                                    }`}
-                                    onClick={() => openEditExercise(exercise)}
-                                  >
-                                    <div
-                                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                        isInSuperset
-                                          ? 'bg-primary text-primary-foreground'
-                                          : 'bg-primary text-primary-foreground'
-                                      }`}
-                                    >
-                                      {label}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-foreground leading-tight truncate">
-                                        {exercise.name}
-                                      </p>
-                                      <p className="text-[10px] text-muted-foreground">
-                                        {exercise.sets} {exercise.sets === 1 ? 'Set' : 'Sets'}
-                                      </p>
-                                      {exercise.weight && (
-                                        <p className="text-[10px] text-muted-foreground">
-                                          {exercise.reps} @ {exercise.weight}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-0.5">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          moveExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id, direction: 'up' });
-                                        }}
-                                        disabled={idx === 0}
-                                        className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
-                                      >
-                                        <ChevronUp className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          moveExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id, direction: 'down' });
-                                        }}
-                                        disabled={idx === arr.length - 1}
-                                        className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
-                                      >
-                                        <ChevronDown className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                    <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-0.5">
-                                      {isInSuperset && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            unlinkExercise.mutate({ exerciseId: exercise.id, workoutId: workout.id });
-                                          }}
-                                          className="p-1 text-muted-foreground hover:text-destructive"
-                                        >
-                                          <Unlink className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteExercise.mutate(exercise.id);
-                                        }}
-                                        className="p-1 text-muted-foreground hover:text-destructive"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-
-                            {/* Add Exercise Button */}
-                            <button
-                              onClick={() => {
-                                setSelectedWorkout(workout.id);
-                                setIsExerciseDialogOpen(true);
-                              }}
-                              className="w-full py-2 text-[10px] text-primary hover:text-primary/80 flex items-center justify-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" />
-                              Add Exercise
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-
-                  {/* Add another workout to this day */}
-                  {dayWorkouts.length > 0 && (
-                    <button
-                      onClick={() => openCreateWorkoutForDay(day)}
-                      className="w-full py-2 text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add Session
-                    </button>
-                  )}
+                return (
+                  <DroppableDayColumn
+                    key={day}
+                    day={day}
+                    workouts={dayWorkouts.map(w => ({
+                      id: w.id,
+                      title: w.title,
+                      exercises: (w.exercises as any[]) || [],
+                    }))}
+                    onCreateWorkout={() => openCreateWorkoutForDay(day)}
+                    onAddExercise={(workoutId) => {
+                      setSelectedWorkout(workoutId);
+                      setIsExerciseDialogOpen(true);
+                    }}
+                    onDuplicateWorkout={(workoutId) => duplicateWorkout.mutate(workoutId)}
+                    onRepeatWorkout={(workoutId) => repeatWorkout.mutate(workoutId)}
+                    onDeleteWorkout={(workoutId) => deleteWorkout.mutate(workoutId)}
+                    onEditExercise={(exercise) => openEditExercise(exercise)}
+                    onDeleteExercise={(exerciseId) => deleteExercise.mutate(exerciseId)}
+                    onMoveExercise={(exerciseId, workoutId, direction) => 
+                      moveExercise.mutate({ exerciseId, workoutId, direction })
+                    }
+                    onLinkWithAbove={(exerciseId, workoutId) => 
+                      linkWithAbove.mutate({ exerciseId, workoutId })
+                    }
+                    onUnlinkExercise={(exerciseId, workoutId) => 
+                      unlinkExercise.mutate({ exerciseId, workoutId })
+                    }
+                    getExerciseLabel={getExerciseLabel}
+                  />
+                );
+              })}
+            </div>
+            <DragOverlay>
+              {activeWorkoutId ? (
+                <div className="bg-card border border-primary rounded-lg p-3 shadow-lg opacity-90">
+                  <span className="text-sm font-semibold text-foreground">
+                    {workouts?.find(w => w.id === activeWorkoutId)?.title || 'Workout'}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       </div>
 
