@@ -4,7 +4,7 @@ import WeeklyCalendar from "@/components/WeeklyCalendar";
 import ProgressRing from "@/components/ProgressRing";
 import QuickAddActivity from "@/components/QuickAddActivity";
 import { Button } from "@/components/ui/button";
-import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight, Dumbbell, Play } from "lucide-react";
+import { Trophy, Flame, Calendar, TrendingUp, Zap, ChevronRight, Dumbbell, Play, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNextWorkout, useUpcomingWorkouts } from "@/hooks/useNextWorkout";
 import { useUserStats } from "@/hooks/useUserStats";
@@ -17,7 +17,7 @@ const Index = () => {
   const { data: nextWorkout, isLoading: workoutLoading } = useNextWorkout();
   const { data: upcomingWorkouts } = useUpcomingWorkouts(3);
   const { data: stats } = useUserStats();
-  const { inProgressWorkout } = useInProgressWorkout();
+  const { inProgressWorkout, clearSession } = useInProgressWorkout();
   const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Athlete";
@@ -62,7 +62,14 @@ const Index = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Resume In-Progress Workout Banner */}
             {inProgressWorkout && (
-              <div className="bg-primary/10 border-2 border-primary rounded-2xl p-6 animate-pulse-glow">
+              <div className="bg-primary/10 border-2 border-primary rounded-2xl p-6 animate-pulse-glow relative">
+                <button
+                  onClick={() => clearSession(inProgressWorkout.workoutId)}
+                  className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss workout"
+                >
+                  <X className="w-4 h-4" />
+                </button>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
