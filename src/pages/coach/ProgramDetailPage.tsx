@@ -847,15 +847,14 @@ const ProgramDetailPage = () => {
       {/* Calendar Grid */}
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
-          {/* Day Headers */}
-          <div className="grid border-b border-border" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
-            {dayLabels.map((label, idx) => (
+          {/* Day Headers - Sticky */}
+          <div className="grid border-b border-border bg-background sticky top-0 z-10" style={{ gridTemplateColumns: `repeat(${daysPerWeek}, 1fr)` }}>
+            {dayLabels.map((label) => (
               <div
                 key={label}
-                className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground border-r border-border last:border-r-0"
+                className="px-2 py-3 text-center text-sm font-semibold text-foreground border-r border-border last:border-r-0 bg-card"
               >
                 {label}
-                <div className="text-foreground mt-0.5">{idx + 1}</div>
               </div>
             ))}
           </div>
