@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCoachAccess } from "@/hooks/useCoachAccess";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -31,7 +39,8 @@ import {
   TrendingUp,
   CalendarOff,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  Plus
 } from "lucide-react";
 import ClientBlockedDates from "@/components/ClientBlockedDates";
 import MessagingPanel from "@/components/MessagingPanel";
@@ -42,6 +51,7 @@ const ClientDetailPage = () => {
   const navigate = useNavigate();
   const { clientId } = useParams<{ clientId: string }>();
   const { isCoach, isLoading: isCheckingAccess } = useCoachAccess();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [newDate, setNewDate] = useState("");
@@ -49,6 +59,9 @@ const ClientDetailPage = () => {
   const [activeTab, setActiveTab] = useState("calendar");
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<Set<string>>(new Set());
+  const [isAssignProgramOpen, setIsAssignProgramOpen] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+  const [programStartDate, setProgramStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   // Fetch client profile
   const { data: client, isLoading: isLoadingClient } = useQuery({
@@ -94,6 +107,21 @@ const ClientDetailPage = () => {
       return data;
     },
     enabled: isCoach && !!clientId,
+  });
+
+  // Fetch all available programs for assignment
+  const { data: availablePrograms } = useQuery({
+    queryKey: ["programs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("programs")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: isCoach,
   });
 
   // Fetch all workouts for this client
@@ -258,6 +286,69 @@ const ClientDetailPage = () => {
     },
     onError: (error) => {
       toast.error("Failed to delete: " + error.message);
+    },
+  });
+
+  // Assign program mutation
+  const assignProgram = useMutation({
+    mutationFn: async ({ programId, startDate }: { programId: string; startDate: string }) => {
+      // First, get the program details with workout templates
+      const { data: program, error: programError } = await supabase
+        .from("programs")
+        .select("*, workout_templates(*)")
+        .eq("id", programId)
+        .single();
+
+      if (programError) throw programError;
+
+      // Insert the client_program record
+      const { error: assignError } = await supabase
+        .from("client_programs")
+        .insert({
+          user_id: clientId,
+          program_id: programId,
+          start_date: startDate,
+          assigned_by: user?.id,
+        });
+
+      if (assignError) throw assignError;
+
+      // Schedule workouts based on the program's workout templates
+      if (program.workout_templates && program.workout_templates.length > 0) {
+        const startDateObj = new Date(startDate);
+        const workoutsToInsert: any[] = [];
+
+        program.workout_templates.forEach((template: any) => {
+          const weekOffset = (template.week_number - 1) * 7;
+          const dayOffset = template.day_number - 1;
+          const workoutDate = new Date(startDateObj);
+          workoutDate.setDate(workoutDate.getDate() + weekOffset + dayOffset);
+
+          workoutsToInsert.push({
+            user_id: clientId,
+            workout_template_id: template.id,
+            scheduled_date: format(workoutDate, "yyyy-MM-dd"),
+            completed: false,
+          });
+        });
+
+        const { error: workoutsError } = await supabase
+          .from("user_workouts")
+          .insert(workoutsToInsert);
+
+        if (workoutsError) throw workoutsError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-program", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client-workouts", clientId] });
+      setIsAssignProgramOpen(false);
+      setSelectedProgramId("");
+      setProgramStartDate(format(new Date(), "yyyy-MM-dd"));
+      toast.success("Program assigned successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to assign program: " + error.message);
     },
   });
 
@@ -447,16 +538,16 @@ const ClientDetailPage = () => {
           </Card>
         </div>
 
-        {/* Current Program */}
-        {clientProgram && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-primary" />
-                Current Program
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* Current Program or Assign Program */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Dumbbell className="w-5 h-5 text-primary" />
+              {clientProgram ? "Current Program" : "No Program Assigned"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {clientProgram ? (
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold text-foreground text-lg">
@@ -470,9 +561,20 @@ const ClientDetailPage = () => {
                   {(clientProgram as any).programs?.duration_weeks}w / {(clientProgram as any).programs?.days_per_week}x per week
                 </Badge>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <p className="text-muted-foreground text-center">
+                  This client doesn't have a program assigned yet.
+                </p>
+                <Button onClick={() => setIsAssignProgramOpen(true)} className="bg-primary hover:bg-primary/90">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Assign Program
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
 
         {/* Tabs for Calendar, Performance, and Blocked Dates */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -814,6 +916,55 @@ const ClientDetailPage = () => {
               className="w-full bg-primary hover:bg-primary/90"
             >
               {rescheduleWorkout.isPending ? "Saving..." : "Save New Date"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Program Dialog */}
+      <Dialog open={isAssignProgramOpen} onOpenChange={setIsAssignProgramOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Assign Program</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Select a program and start date for {client?.full_name || "this client"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="program">Program</Label>
+              <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Select a program" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePrograms?.map((program) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name} ({program.duration_weeks}w / {program.days_per_week}x)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={programStartDate}
+                onChange={(e) => setProgramStartDate(e.target.value)}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <Button
+              onClick={() => assignProgram.mutate({ 
+                programId: selectedProgramId, 
+                startDate: programStartDate 
+              })}
+              disabled={!selectedProgramId || !programStartDate || assignProgram.isPending}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              {assignProgram.isPending ? "Assigning..." : "Assign Program"}
             </Button>
           </div>
         </DialogContent>
