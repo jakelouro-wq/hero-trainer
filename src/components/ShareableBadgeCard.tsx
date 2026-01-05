@@ -19,35 +19,27 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
       switch (category) {
         case "streak":
           return {
-            primary: "#FF6B35",
-            secondary: "#F72585",
-            tertiary: "#FFB347",
-            dark: "#7B2D26",
-            glow: "rgba(247, 37, 133, 0.5)",
+            gradient: "linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%)",
+            glow: "#FF416C",
+            accent: "#FF6B6B",
           };
         case "weight":
           return {
-            primary: "#7B68EE",
-            secondary: "#4158D0",
-            tertiary: "#C850C0",
-            dark: "#2D1B69",
-            glow: "rgba(123, 104, 238, 0.5)",
+            gradient: "linear-gradient(135deg, #667EEA 0%, #764BA2 100%)",
+            glow: "#667EEA",
+            accent: "#A78BFA",
           };
         case "workouts":
           return {
-            primary: "#00D9A5",
-            secondary: "#00B4D8",
-            tertiary: "#48CAE4",
-            dark: "#065A52",
-            glow: "rgba(0, 217, 165, 0.5)",
+            gradient: "linear-gradient(135deg, #11998E 0%, #38EF7D 100%)",
+            glow: "#38EF7D",
+            accent: "#6EE7B7",
           };
         default:
           return {
-            primary: "#00B4D8",
-            secondary: "#0077B6",
-            tertiary: "#48CAE4",
-            dark: "#023E73",
-            glow: "rgba(0, 180, 216, 0.5)",
+            gradient: "linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)",
+            glow: "#4FACFE",
+            accent: "#67E8F9",
           };
       }
     };
@@ -60,29 +52,18 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
       }
       
       if (badge.category === "streak") {
-        if (badge.threshold >= 52) return "Champions are made through consistency, not perfection.";
-        if (badge.threshold >= 26) return "Half a year of dedication. Unstoppable.";
-        if (badge.threshold >= 12) return "Three months strong. This is who you are now.";
-        if (badge.threshold >= 4) return "Discipline is the bridge between goals and accomplishment.";
-        return "Consistency beats intensity. Every. Single. Time.";
+        if (badge.threshold >= 52) return "Champions are made through consistency.";
+        if (badge.threshold >= 12) return "This is who you are now.";
+        return "Consistency beats intensity.";
       }
       
       if (badge.category === "weight") {
-        if (badge.threshold >= 10000000) return "Ten million pounds. Legend status achieved.";
-        if (badge.threshold >= 5000000) return "Five million pounds moved. You're built different.";
-        if (badge.threshold >= 1000000) return "A million pounds. Proof that effort compounds.";
-        if (badge.threshold >= 500000) return "Half a million pounds of pure dedication.";
-        if (badge.threshold >= 100000) return "Heavy is the iron that builds champions.";
-        return "Every pound lifted is a step toward greatness.";
+        if (badge.threshold >= 1000000) return "Proof that effort compounds.";
+        return "Every pound lifted builds greatness.";
       }
       
       if (badge.category === "workouts") {
-        if (badge.threshold >= 500) return "500 workouts. You've mastered the art of showing up.";
-        if (badge.threshold >= 250) return "A quarter thousand. Relentless.";
-        if (badge.threshold >= 100) return "Triple digits. The grind is paying off.";
-        if (badge.threshold >= 50) return "Fifty down, infinite to go.";
-        if (badge.threshold >= 25) return "Twenty-five workouts. Building momentum.";
-        if (badge.threshold >= 10) return "Double digits. You're just getting started.";
+        if (badge.threshold >= 100) return "The grind is paying off.";
         return "Show up. Work hard. Repeat.";
       }
       
@@ -94,258 +75,89 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
     return (
       <div
         ref={ref}
-        className="w-[400px] h-[520px] relative overflow-hidden"
+        className="w-[400px] h-[500px] relative overflow-hidden flex flex-col"
         style={{ 
-          fontFamily: "'Montserrat', 'Inter', system-ui, sans-serif",
-          background: "linear-gradient(160deg, #08080C 0%, #0F0F18 40%, #08080C 100%)",
-          borderRadius: "24px",
+          fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+          background: "#000000",
+          borderRadius: "20px",
         }}
       >
-        {/* Subtle grid pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: "30px 30px",
-          }}
-        />
-
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-6 pt-5">
-          <img src={louroLogo} alt="Louro" className="h-8 object-contain" />
-          <span className="text-white/40 text-xs font-semibold tracking-wider">@LOUROTRAINING</span>
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <img src={louroLogo} alt="Louro" className="h-7 object-contain opacity-90" />
+          <span className="text-white/50 text-xs font-medium tracking-wide">@lourotraining</span>
         </div>
 
-        {/* Main badge */}
-        <div className="relative z-10 flex flex-col items-center justify-center mt-4">
+        {/* Badge section */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
           
-          {/* Badge container with 3D effect */}
-          <div className="relative" style={{ perspective: "800px" }}>
-            
-            {/* Deep shadow */}
+          {/* Badge circle */}
+          <div className="relative mb-8">
+            {/* Outer glow */}
             <div 
-              className="absolute top-8 left-1/2 -translate-x-1/2"
-              style={{
-                width: "180px",
-                height: "180px",
-                borderRadius: "50%",
-                background: "rgba(0,0,0,0.8)",
-                filter: "blur(40px)",
+              className="absolute inset-0 rounded-full blur-2xl opacity-40"
+              style={{ 
+                background: theme.glow,
+                transform: "scale(1.2)",
               }}
             />
             
-            {/* Glow effect */}
+            {/* Main badge ring */}
             <div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full"
-              style={{
-                background: `radial-gradient(circle, ${theme.glow} 0%, transparent 50%)`,
-              }}
-            />
-
-            {/* Main badge SVG */}
-            <svg 
-              width="280" 
-              height="280" 
-              viewBox="0 0 280 280"
-              className="relative z-10"
-              style={{
-                filter: `drop-shadow(0 20px 40px ${theme.glow}) drop-shadow(0 8px 16px rgba(0,0,0,0.6))`,
+              className="relative w-44 h-44 rounded-full p-1"
+              style={{ 
+                background: theme.gradient,
+                boxShadow: `0 0 60px ${theme.glow}40, 0 20px 40px rgba(0,0,0,0.4)`,
               }}
             >
-              <defs>
-                {/* Main metallic gradient */}
-                <linearGradient id={`metal-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={theme.tertiary} />
-                  <stop offset="25%" stopColor={theme.primary} />
-                  <stop offset="50%" stopColor={theme.secondary} />
-                  <stop offset="75%" stopColor={theme.primary} />
-                  <stop offset="100%" stopColor={theme.tertiary} />
-                </linearGradient>
-                
-                {/* Shine overlay */}
-                <linearGradient id={`shine-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
-                  <stop offset="30%" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="70%" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="100%" stopColor="rgba(255,255,255,0.2)" />
-                </linearGradient>
-                
-                {/* Inner circle gradient */}
-                <radialGradient id={`inner-${badge.id}`} cx="40%" cy="40%">
-                  <stop offset="0%" stopColor={theme.dark} />
-                  <stop offset="100%" stopColor="#0a0a10" />
-                </radialGradient>
-                
-                {/* Star gradient */}
-                <linearGradient id={`star-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={theme.tertiary} />
-                  <stop offset="100%" stopColor={theme.primary} />
-                </linearGradient>
-              </defs>
-              
-              {/* Outer scalloped ring - Peloton style with deeper waves */}
-              <path 
-                d={generateScallopedPath(140, 140, 125, 105, 12)} 
-                fill={`url(#metal-${badge.id})`}
-              />
-              
-              {/* Shine overlay on scalloped ring */}
-              <path 
-                d={generateScallopedPath(140, 140, 125, 105, 12)} 
-                fill={`url(#shine-${badge.id})`}
-              />
-              
-              {/* Inner ring border */}
-              <circle 
-                cx="140" 
-                cy="140" 
-                r="88" 
-                fill="none"
-                stroke={theme.primary}
-                strokeWidth="3"
-                opacity="0.6"
-              />
-              
               {/* Inner dark circle */}
-              <circle 
-                cx="140" 
-                cy="140" 
-                r="85" 
-                fill={`url(#inner-${badge.id})`}
-              />
-              
-              {/* Decorative inner ring */}
-              <circle 
-                cx="140" 
-                cy="140" 
-                r="75" 
-                fill="none"
-                stroke={theme.primary}
-                strokeWidth="1"
-                opacity="0.3"
-                strokeDasharray="4 4"
-              />
-              
-              {/* Decorative stars around the badge */}
-              {[0, 72, 144, 216, 288].map((angle, i) => {
-                const rad = (angle * Math.PI) / 180;
-                const x = 140 + 98 * Math.cos(rad - Math.PI / 2);
-                const y = 140 + 98 * Math.sin(rad - Math.PI / 2);
-                return (
-                  <g key={i} transform={`translate(${x}, ${y})`}>
-                    <polygon
-                      points="0,-6 1.5,-2 6,-2 2.5,1 4,5 0,2.5 -4,5 -2.5,1 -6,-2 -1.5,-2"
-                      fill={`url(#star-${badge.id})`}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
-
-            {/* Badge emoji overlay */}
-            <div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20"
-              style={{ width: "150px", height: "150px" }}
-            >
-              <span 
-                className="text-8xl"
+              <div 
+                className="w-full h-full rounded-full flex items-center justify-center"
                 style={{ 
-                  filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.5))",
+                  background: "linear-gradient(145deg, #1a1a1a 0%, #0a0a0a 100%)",
                 }}
               >
-                {badge.icon_url}
-              </span>
+                {/* Emoji centered */}
+                <span className="text-7xl leading-none">{badge.icon_url}</span>
+              </div>
             </div>
           </div>
 
           {/* Badge name */}
-          <h2 
-            className="text-3xl font-black text-center mt-4 mb-2 tracking-tight text-white uppercase"
-            style={{ textShadow: `0 2px 20px ${theme.glow}` }}
-          >
+          <h2 className="text-2xl font-bold text-white text-center tracking-tight mb-2">
             {badge.name}
           </h2>
 
           {/* Earned date */}
-          <p className="text-white/40 text-sm font-medium mb-4">
-            Earned {format(earnedAt, "MMMM d, yyyy")}
+          <p className="text-white/40 text-sm mb-6">
+            {format(earnedAt, "MMMM d, yyyy")}
           </p>
 
-          {/* Inspiring quote */}
-          <div className="px-10">
-            <p 
-              className="text-center text-sm italic leading-relaxed"
-              style={{ color: theme.primary, opacity: 0.85 }}
-            >
-              "{getInspiringQuote()}"
-            </p>
-          </div>
+          {/* Divider */}
+          <div 
+            className="w-12 h-0.5 rounded-full mb-6"
+            style={{ background: theme.gradient }}
+          />
+
+          {/* Quote */}
+          <p 
+            className="text-center text-sm leading-relaxed max-w-[280px]"
+            style={{ color: theme.accent }}
+          >
+            {getInspiringQuote()}
+          </p>
         </div>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 px-6 py-4">
-          <div className="flex items-center justify-center">
-            <span 
-              className="text-xs font-bold tracking-[0.15em]"
-              style={{ color: theme.primary, opacity: 0.5 }}
-            >
-              WWW.LOUROTRAINING.COM
-            </span>
-          </div>
+        <div className="px-6 py-5 flex items-center justify-center border-t border-white/5">
+          <span className="text-white/30 text-xs font-medium tracking-wide">
+            lourotraining.com
+          </span>
         </div>
-
-        {/* Subtle corner glow */}
-        <div 
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-10 blur-3xl"
-          style={{ background: theme.primary }}
-        />
       </div>
     );
   }
 );
-
-// Generate deep scalloped path like Peloton badges
-function generateScallopedPath(
-  cx: number, 
-  cy: number, 
-  outerR: number, 
-  innerR: number, 
-  points: number
-): string {
-  let path = "";
-  
-  for (let i = 0; i < points; i++) {
-    const angle1 = (i * 2 * Math.PI) / points - Math.PI / 2;
-    const angle2 = ((i + 0.5) * 2 * Math.PI) / points - Math.PI / 2;
-    const angle3 = ((i + 1) * 2 * Math.PI) / points - Math.PI / 2;
-    
-    const x1 = cx + outerR * Math.cos(angle1);
-    const y1 = cy + outerR * Math.sin(angle1);
-    const x2 = cx + innerR * Math.cos(angle2);
-    const y2 = cy + innerR * Math.sin(angle2);
-    const x3 = cx + outerR * Math.cos(angle3);
-    const y3 = cy + outerR * Math.sin(angle3);
-    
-    if (i === 0) {
-      path += `M ${x1} ${y1}`;
-    }
-    
-    // Create smooth curves for the scallop
-    const cp1x = cx + (outerR * 0.85) * Math.cos(angle1 + (angle2 - angle1) * 0.5);
-    const cp1y = cy + (outerR * 0.85) * Math.sin(angle1 + (angle2 - angle1) * 0.5);
-    const cp2x = cx + (outerR * 0.85) * Math.cos(angle2 + (angle3 - angle2) * 0.5);
-    const cp2y = cy + (outerR * 0.85) * Math.sin(angle2 + (angle3 - angle2) * 0.5);
-    
-    path += ` C ${cp1x} ${cp1y} ${x2} ${y2} ${x2} ${y2}`;
-    path += ` C ${x2} ${y2} ${cp2x} ${cp2y} ${x3} ${y3}`;
-  }
-  
-  path += " Z";
-  return path;
-}
 
 ShareableBadgeCard.displayName = "ShareableBadgeCard";
 
