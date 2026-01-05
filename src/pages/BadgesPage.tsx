@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import { useBadges, useUserBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/useBadges";
 import BadgeCelebration from "@/components/BadgeCelebration";
-import { Trophy, Flame, Dumbbell, Target, Lock } from "lucide-react";
+import ShareDialog from "@/components/ShareDialog";
+import { Trophy, Flame, Dumbbell, Target, Lock, Share2 } from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 const BadgesPage = () => {
   const { data: allBadges, isLoading: badgesLoading } = useBadges();
@@ -13,6 +15,8 @@ const BadgesPage = () => {
   
   const [celebrationBadge, setCelebrationBadge] = useState<Badge | null>(null);
   const [celebrationQueue, setCelebrationQueue] = useState<Badge[]>([]);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareBadge, setShareBadge] = useState<{ badge: Badge; earnedAt: Date } | null>(null);
 
   // Check for new badges when stats update
   useEffect(() => {
@@ -38,6 +42,11 @@ const BadgesPage = () => {
 
   const handleCloseCelebration = () => {
     setCelebrationBadge(null);
+  };
+
+  const handleShareBadge = (badge: Badge, earnedAt: string) => {
+    setShareBadge({ badge, earnedAt: new Date(earnedAt) });
+    setShowShareDialog(true);
   };
 
   const earnedBadgeIds = new Set(userBadges?.map((ub) => ub.badge_id) || []);
@@ -153,6 +162,21 @@ const BadgesPage = () => {
                         : "bg-secondary/30 border-border opacity-60 hover:opacity-80"
                     }`}
                   >
+                    {/* Share Button for earned badges */}
+                    {isEarned && earnedBadge && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShareBadge(badge, earnedBadge.earned_at);
+                        }}
+                      >
+                        <Share2 className="w-4 h-4 text-primary" />
+                      </Button>
+                    )}
+
                     {/* Badge Icon */}
                     <div
                       className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl transition-transform duration-300 ${
@@ -214,6 +238,25 @@ const BadgesPage = () => {
           </div>
         ))}
       </main>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        isOpen={showShareDialog}
+        onClose={() => {
+          setShowShareDialog(false);
+          setShareBadge(null);
+        }}
+        data={shareBadge ? {
+          type: "badge",
+          badge: shareBadge.badge,
+          earnedAt: shareBadge.earnedAt,
+          stats: {
+            totalWorkouts: stats?.totalWorkouts,
+            totalWeightLifted: stats?.totalWeightLifted,
+            currentStreak: stats?.currentStreak,
+          },
+        } : null}
+      />
     </div>
   );
 };
