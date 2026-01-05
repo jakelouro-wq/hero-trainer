@@ -3,9 +3,10 @@ import Header from "@/components/Header";
 import { useBadges, useUserBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/useBadges";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import ShareDialog from "@/components/ShareDialog";
-import { Trophy, Flame, Dumbbell, Target, Lock, Share2 } from "lucide-react";
+import { Trophy, Flame, Dumbbell, Target, Lock, Share2, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import louroLogo from "@/assets/louro-logo.png";
 
 const BadgesPage = () => {
   const { data: allBadges, isLoading: badgesLoading } = useBadges();
@@ -18,7 +19,6 @@ const BadgesPage = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareBadge, setShareBadge] = useState<{ badge: Badge; earnedAt: Date } | null>(null);
 
-  // Check for new badges when stats update
   useEffect(() => {
     if (stats && allBadges) {
       checkBadges.mutate(stats, {
@@ -32,7 +32,6 @@ const BadgesPage = () => {
     }
   }, [stats, allBadges]);
 
-  // Process celebration queue
   useEffect(() => {
     if (celebrationQueue.length > 0 && !celebrationBadge) {
       setCelebrationBadge(celebrationQueue[0]);
@@ -77,6 +76,19 @@ const BadgesPage = () => {
     }
   };
 
+  const getCategoryGlow = (category: string) => {
+    switch (category) {
+      case "streak":
+        return "shadow-orange-500/40";
+      case "weight":
+        return "shadow-blue-500/40";
+      case "workouts":
+        return "shadow-green-500/40";
+      default:
+        return "shadow-purple-500/40";
+    }
+  };
+
   const groupedBadges = allBadges?.reduce((acc, badge) => {
     if (!acc[badge.category]) acc[badge.category] = [];
     acc[badge.category].push(badge);
@@ -112,28 +124,39 @@ const BadgesPage = () => {
       />
 
       <main className="pt-24 pb-12 container mx-auto px-4">
-        {/* Stats Summary */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-foreground mb-2">Trophy Closet</h1>
-          <p className="text-muted-foreground">
-            {userBadges?.length || 0} of {allBadges?.length || 0} badges earned
-          </p>
+        {/* Header with Logo */}
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
+              <Trophy className="w-8 h-8 text-yellow-500 animate-bounce-soft" />
+              Trophy Closet
+            </h1>
+            <p className="text-muted-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              {userBadges?.length || 0} of {allBadges?.length || 0} badges earned
+            </p>
+          </div>
+          <img 
+            src={louroLogo} 
+            alt="Louro Training" 
+            className="h-12 object-contain opacity-80"
+          />
         </div>
 
         {/* Current Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="card-gradient rounded-xl p-4 border border-border text-center">
-            <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+          <div className="card-gradient rounded-xl p-4 border border-border text-center group hover:border-orange-500/50 transition-all duration-300">
+            <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2 group-hover:animate-wiggle" />
             <p className="text-2xl font-bold text-foreground">{stats?.currentStreak || 0}</p>
             <p className="text-xs text-muted-foreground">Week Streak</p>
           </div>
-          <div className="card-gradient rounded-xl p-4 border border-border text-center">
-            <Dumbbell className="w-8 h-8 text-primary mx-auto mb-2" />
+          <div className="card-gradient rounded-xl p-4 border border-border text-center group hover:border-primary/50 transition-all duration-300">
+            <Dumbbell className="w-8 h-8 text-primary mx-auto mb-2 group-hover:animate-bounce-soft" />
             <p className="text-2xl font-bold text-foreground">{stats?.totalWeightLifted?.toLocaleString() || 0}</p>
             <p className="text-xs text-muted-foreground">lbs Lifted</p>
           </div>
-          <div className="card-gradient rounded-xl p-4 border border-border text-center">
-            <Target className="w-8 h-8 text-green-500 mx-auto mb-2" />
+          <div className="card-gradient rounded-xl p-4 border border-border text-center group hover:border-green-500/50 transition-all duration-300">
+            <Target className="w-8 h-8 text-green-500 mx-auto mb-2 group-hover:animate-pulse" />
             <p className="text-2xl font-bold text-foreground">{stats?.totalWorkouts || 0}</p>
             <p className="text-xs text-muted-foreground">Workouts</p>
           </div>
@@ -143,12 +166,14 @@ const BadgesPage = () => {
         {groupedBadges && Object.entries(groupedBadges).map(([category, badges]) => (
           <div key={category} className="mb-8">
             <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-              {getCategoryIcon(category)}
+              <span className={`p-1.5 rounded-lg bg-gradient-to-br ${getCategoryColor(category)}`}>
+                {getCategoryIcon(category)}
+              </span>
               {categoryLabels[category] || category}
             </h2>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {badges?.map((badge) => {
+              {badges?.map((badge, index) => {
                 const isEarned = earnedBadgeIds.has(badge.id);
                 const earnedBadge = userBadges?.find((ub) => ub.badge_id === badge.id);
 
@@ -158,16 +183,24 @@ const BadgesPage = () => {
                     onClick={() => isEarned && setCelebrationBadge(badge)}
                     className={`relative rounded-xl p-4 border transition-all duration-300 group ${
                       isEarned
-                        ? "card-gradient border-primary/50 shadow-lg shadow-primary/20 hover:scale-105 cursor-pointer"
+                        ? `card-gradient border-primary/50 shadow-lg ${getCategoryGlow(category)} hover:scale-105 cursor-pointer`
                         : "bg-secondary/30 border-border opacity-60 hover:opacity-80"
                     }`}
+                    style={{ 
+                      animationDelay: `${index * 100}ms`,
+                    }}
                   >
+                    {/* Shimmer effect for earned badges */}
+                    {isEarned && (
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer pointer-events-none" />
+                    )}
+
                     {/* Share Button for earned badges */}
                     {isEarned && earnedBadge && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleShareBadge(badge, earnedBadge.earned_at);
@@ -179,11 +212,12 @@ const BadgesPage = () => {
 
                     {/* Badge Icon */}
                     <div
-                      className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl transition-transform duration-300 ${
+                      className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl transition-all duration-300 ${
                         isEarned
-                          ? `bg-gradient-to-br ${getCategoryColor(category)} group-hover:scale-110`
+                          ? `bg-gradient-to-br ${getCategoryColor(category)} group-hover:scale-110 shadow-lg ${getCategoryGlow(category)} animate-float`
                           : "bg-secondary"
                       }`}
+                      style={{ animationDelay: `${index * 200}ms` }}
                     >
                       {isEarned ? (
                         <span className="drop-shadow-lg">{badge.icon_url}</span>
@@ -202,7 +236,8 @@ const BadgesPage = () => {
 
                     {/* Progress or Earned Date */}
                     {isEarned && earnedBadge ? (
-                      <p className="text-xs text-primary text-center font-medium">
+                      <p className="text-xs text-primary text-center font-medium flex items-center justify-center gap-1">
+                        <Sparkles className="w-3 h-3" />
                         Earned {format(new Date(earnedBadge.earned_at), "MMM d, yyyy")}
                       </p>
                     ) : (
@@ -237,6 +272,12 @@ const BadgesPage = () => {
             </div>
           </div>
         ))}
+
+        {/* Footer branding */}
+        <div className="mt-12 pt-6 border-t border-border flex items-center justify-center gap-2 text-muted-foreground text-sm">
+          <img src={louroLogo} alt="Louro" className="h-6 opacity-60" />
+          <span>@LouroTraining</span>
+        </div>
       </main>
 
       {/* Share Dialog */}
