@@ -66,7 +66,7 @@ export const DraggableWorkoutCard = ({
   onUnlinkExercise,
   getExerciseLabel,
 }: DraggableWorkoutCardProps) => {
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].slice(0, daysPerWeek);
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const {
     attributes,
     listeners,
