@@ -9,6 +9,8 @@ import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupC
 import { toast } from "sonner";
 import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
+import { useBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/useBadges";
+import BadgeCelebration from "@/components/BadgeCelebration";
 
 interface Exercise {
   id: string;
@@ -54,6 +56,13 @@ const Workout = () => {
   const [exerciseWeights, setExerciseWeights] = useState<Record<string, CompletedSetData[]>>({});
   const [swappedExercises, setSwappedExercises] = useState<Record<string, string>>({});
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  
+  // Badge celebration state
+  const [celebrationBadge, setCelebrationBadge] = useState<Badge | null>(null);
+  const [celebrationQueue, setCelebrationQueue] = useState<Badge[]>([]);
+  const { data: allBadges } = useBadges();
+  const checkBadges = useCheckAndAwardBadges();
+  const { refetch: refetchStats } = useUserStats();
   
   // Timer state - now based on timestamps for persistence
   const [sessionState, setSessionState] = useState<SessionState | null>(null);
@@ -498,6 +507,21 @@ const Workout = () => {
       ? Math.round((completedExercises.size / workout.exercises.length) * 100)
       : 0;
 
+  // Process celebration queue one badge at a time
+  useEffect(() => {
+    if (celebrationQueue.length > 0 && !celebrationBadge) {
+      setCelebrationBadge(celebrationQueue[0]);
+      setCelebrationQueue(prev => prev.slice(1));
+    }
+  }, [celebrationQueue, celebrationBadge]);
+
+  const handleCloseCelebration = () => {
+    setCelebrationBadge(null);
+    // If no more badges to show, navigate home
+    if (celebrationQueue.length === 0) {
+      navigate("/");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -520,6 +544,13 @@ const Workout = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Badge Celebration Popup */}
+      <BadgeCelebration 
+        badge={celebrationBadge} 
+        isOpen={!!celebrationBadge} 
+        onClose={handleCloseCelebration} 
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -832,7 +863,31 @@ const Workout = () => {
                     queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
                     queryClient.invalidateQueries({ queryKey: ["user-stats"] });
                     queryClient.invalidateQueries({ queryKey: ["personal-records"] });
-                    navigate("/");
+                    queryClient.invalidateQueries({ queryKey: ["user-full-stats"] });
+                    
+                    // Check for new badges after workout completion
+                    try {
+                      const { data: updatedStats } = await refetchStats();
+                      if (updatedStats && allBadges) {
+                        checkBadges.mutate(updatedStats, {
+                          onSuccess: (newBadgeIds) => {
+                            if (newBadgeIds && newBadgeIds.length > 0) {
+                              const newBadges = allBadges.filter(b => newBadgeIds.includes(b.id));
+                              setCelebrationQueue(newBadges);
+                            } else {
+                              navigate("/");
+                            }
+                          },
+                          onError: () => {
+                            navigate("/");
+                          }
+                        });
+                      } else {
+                        navigate("/");
+                      }
+                    } catch {
+                      navigate("/");
+                    }
                   }
                 }
               }}
