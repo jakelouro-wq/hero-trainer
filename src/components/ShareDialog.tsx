@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Share2, Download, Copy, Check } from "lucide-react";
+import { Instagram, Download } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import ShareableWorkoutCard from "./ShareableWorkoutCard";
@@ -44,14 +44,11 @@ interface ShareDialogProps {
 const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
 
-  // Generate image when dialog opens
   useEffect(() => {
     if (isOpen && data && cardRef.current) {
       const generateImage = async () => {
-        // Small delay to ensure render
         await new Promise(resolve => setTimeout(resolve, 100));
         
         if (!cardRef.current) return;
@@ -78,7 +75,7 @@ const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
     }
   }, [isOpen, data]);
 
-  const handleShare = async () => {
+  const handleShareToInstagram = async () => {
     if (!imageBlob) {
       toast.error("Image not ready yet, please try again");
       return;
@@ -88,27 +85,23 @@ const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
 
     try {
       const file = new File([imageBlob], "louro-share.png", { type: "image/png" });
-      
-      const shareText = data?.type === "workout"
-        ? `Just crushed ${data.workoutName}! 💪 #LouroTraining @LouroTraining`
-        : `Just unlocked "${data?.badge.name}"! 🏆 #LouroTraining @LouroTraining`;
 
+      // Try Web Share API first (works on mobile)
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: "Louro Training",
-          text: shareText,
         });
-        toast.success("Shared successfully!");
+        toast.success("Opening share menu...");
       } else {
-        // Fallback: Download the image
+        // Fallback: Download the image with instructions
         await handleDownload();
-        toast.info("Image downloaded! You can now share it manually.");
+        toast.info("Image saved! Open Instagram Stories and add it from your gallery.");
       }
     } catch (error: any) {
       if (error.name !== "AbortError") {
         console.error("Share failed:", error);
-        toast.error("Failed to share. Try downloading instead.");
+        await handleDownload();
+        toast.info("Image saved! Open Instagram Stories and add it from your gallery.");
       }
     } finally {
       setIsGenerating(false);
@@ -131,18 +124,6 @@ const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast.success("Image downloaded!");
-  };
-
-  const handleCopyCaption = () => {
-    const caption = data?.type === "workout"
-      ? `Just crushed ${data.workoutName}! 💪\n\n⏱️ Duration: ${data.duration}\n🏋️ Weight Lifted: ${data.totalWeight.toLocaleString()} lbs\n🔥 Intensity: ${data.intensityRating}/10\n\n#LouroTraining @LouroTraining`
-      : `Just unlocked "${data?.badge.name}"! 🏆\n\n${data?.badge.description}\n\n#LouroTraining @LouroTraining`;
-
-    navigator.clipboard.writeText(caption);
-    setCopied(true);
-    toast.success("Caption copied!");
-    setTimeout(() => setCopied(false), 2000);
   };
 
   if (!data) return null;
@@ -152,8 +133,8 @@ const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
       <DialogContent className="bg-card border-border max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
-            <Share2 className="w-5 h-5 text-primary" />
-            Share Your {data.type === "workout" ? "Workout" : "Achievement"}
+            <Instagram className="w-5 h-5 text-primary" />
+            Share to Instagram Stories
           </DialogTitle>
         </DialogHeader>
 
@@ -183,37 +164,23 @@ const ShareDialog = ({ isOpen, onClose, data }: ShareDialogProps) => {
         {/* Actions */}
         <div className="space-y-3">
           <Button
-            className="w-full bg-primary hover:bg-primary/90"
-            onClick={handleShare}
+            className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 text-white"
+            onClick={handleShareToInstagram}
             disabled={isGenerating || !imageBlob}
           >
-            <Share2 className="w-4 h-4 mr-2" />
-            {isGenerating ? "Preparing..." : "Share to Stories"}
+            <Instagram className="w-4 h-4 mr-2" />
+            {isGenerating ? "Preparing..." : "Share to Instagram Stories"}
           </Button>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              onClick={handleDownload}
-              disabled={!imageBlob}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-            <Button variant="outline" onClick={handleCopyCaption}>
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Caption
-                </>
-              )}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleDownload}
+            disabled={!imageBlob}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Save Image
+          </Button>
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
