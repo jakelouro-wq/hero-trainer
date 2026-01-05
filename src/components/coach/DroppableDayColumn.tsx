@@ -20,6 +20,7 @@ interface Workout {
 
 interface DroppableDayColumnProps {
   day: number;
+  daysPerWeek: number;
   workouts: Workout[];
   onCreateWorkout: () => void;
   onAddExercise: (workoutId: string) => void;
@@ -27,6 +28,7 @@ interface DroppableDayColumnProps {
   onDuplicateWorkout: (workoutId: string) => void;
   onRepeatWorkout: (workoutId: string) => void;
   onDeleteWorkout: (workoutId: string) => void;
+  onChangeWorkoutDay: (workoutId: string, newDay: number) => void;
   onEditExercise: (exercise: Exercise) => void;
   onDeleteExercise: (exerciseId: string) => void;
   onMoveExercise: (exerciseId: string, workoutId: string, direction: 'up' | 'down') => void;
@@ -37,6 +39,7 @@ interface DroppableDayColumnProps {
 
 export const DroppableDayColumn = ({
   day,
+  daysPerWeek,
   workouts,
   onCreateWorkout,
   onAddExercise,
@@ -44,6 +47,7 @@ export const DroppableDayColumn = ({
   onDuplicateWorkout,
   onRepeatWorkout,
   onDeleteWorkout,
+  onChangeWorkoutDay,
   onEditExercise,
   onDeleteExercise,
   onMoveExercise,
@@ -77,11 +81,14 @@ export const DroppableDayColumn = ({
             <DraggableWorkoutCard
               key={workout.id}
               workout={workout}
+              currentDay={day}
+              daysPerWeek={daysPerWeek}
               onAddExercise={() => onAddExercise(workout.id)}
               onEditWorkout={() => onEditWorkout(workout.id)}
               onDuplicate={() => onDuplicateWorkout(workout.id)}
               onRepeat={() => onRepeatWorkout(workout.id)}
               onDelete={() => onDeleteWorkout(workout.id)}
+              onChangeDay={(newDay) => onChangeWorkoutDay(workout.id, newDay)}
               onEditExercise={onEditExercise}
               onDeleteExercise={onDeleteExercise}
               onMoveExercise={(exerciseId, direction) => onMoveExercise(exerciseId, workout.id, direction)}

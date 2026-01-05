@@ -1,5 +1,4 @@
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +6,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus, Copy, Repeat, Trash2, Activity, Clock, Link2, Unlink, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MoreVertical, Plus, Copy, Repeat, Trash2, Activity, Clock, Link2, Unlink, ChevronUp, ChevronDown, GripVertical, Calendar } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -27,11 +33,14 @@ interface Workout {
 
 interface DraggableWorkoutCardProps {
   workout: Workout;
+  currentDay: number;
+  daysPerWeek: number;
   onAddExercise: () => void;
   onEditWorkout: () => void;
   onDuplicate: () => void;
   onRepeat: () => void;
   onDelete: () => void;
+  onChangeDay: (newDay: number) => void;
   onEditExercise: (exercise: Exercise) => void;
   onDeleteExercise: (exerciseId: string) => void;
   onMoveExercise: (exerciseId: string, direction: 'up' | 'down') => void;
@@ -42,11 +51,14 @@ interface DraggableWorkoutCardProps {
 
 export const DraggableWorkoutCard = ({
   workout,
+  currentDay,
+  daysPerWeek,
   onAddExercise,
   onEditWorkout,
   onDuplicate,
   onRepeat,
   onDelete,
+  onChangeDay,
   onEditExercise,
   onDeleteExercise,
   onMoveExercise,
@@ -54,6 +66,7 @@ export const DraggableWorkoutCard = ({
   onUnlinkExercise,
   getExerciseLabel,
 }: DraggableWorkoutCardProps) => {
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].slice(0, daysPerWeek);
   const {
     attributes,
     listeners,
@@ -129,21 +142,41 @@ export const DraggableWorkoutCard = ({
         </DropdownMenu>
       </div>
 
-      {/* Stats Row */}
-      <div className="flex items-center justify-around px-2 py-2 border-b border-border">
-        <div className="flex flex-col items-center">
-          <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
-            <Activity className="w-3 h-3 text-muted-foreground" />
-          </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">
-            0/{totalSets}
-          </span>
+      {/* Day Selector & Stats Row */}
+      <div className="flex items-center justify-between px-2 py-2 border-b border-border">
+        <div className="flex items-center gap-1">
+          <Calendar className="w-3 h-3 text-muted-foreground" />
+          <Select
+            value={currentDay.toString()}
+            onValueChange={(value) => onChangeDay(parseInt(value))}
+          >
+            <SelectTrigger className="h-6 w-[70px] text-[10px] bg-secondary/50 border-border px-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border z-50">
+              {dayLabels.map((label, idx) => (
+                <SelectItem key={idx + 1} value={(idx + 1).toString()} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex flex-col items-center">
-          <div className="w-6 h-6 rounded-full border-2 border-muted-foreground flex items-center justify-center">
-            <Clock className="w-3 h-3 text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center">
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground flex items-center justify-center">
+              <Activity className="w-2.5 h-2.5 text-muted-foreground" />
+            </div>
+            <span className="text-[9px] text-muted-foreground mt-0.5">
+              0/{totalSets}
+            </span>
           </div>
-          <span className="text-[10px] text-muted-foreground mt-0.5">-</span>
+          <div className="flex flex-col items-center">
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground flex items-center justify-center">
+              <Clock className="w-2.5 h-2.5 text-muted-foreground" />
+            </div>
+            <span className="text-[9px] text-muted-foreground mt-0.5">-</span>
+          </div>
         </div>
       </div>
 

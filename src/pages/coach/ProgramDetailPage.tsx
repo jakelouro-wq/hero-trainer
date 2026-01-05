@@ -818,6 +818,7 @@ const ProgramDetailPage = () => {
                   <DroppableDayColumn
                     key={day}
                     day={day}
+                    daysPerWeek={daysPerWeek}
                     workouts={dayWorkouts.map(w => ({
                       id: w.id,
                       title: w.title,
@@ -832,6 +833,7 @@ const ProgramDetailPage = () => {
                     onDuplicateWorkout={(workoutId) => duplicateWorkout.mutate(workoutId)}
                     onRepeatWorkout={(workoutId) => repeatWorkout.mutate(workoutId)}
                     onDeleteWorkout={(workoutId) => deleteWorkout.mutate(workoutId)}
+                    onChangeWorkoutDay={(workoutId, newDay) => moveWorkoutToDay.mutate({ workoutId, newDay })}
                     onEditExercise={(exercise) => openEditExercise(exercise)}
                     onDeleteExercise={(exerciseId) => deleteExercise.mutate(exerciseId)}
                     onMoveExercise={(exerciseId, workoutId, direction) => 
