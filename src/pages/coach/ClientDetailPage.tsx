@@ -289,10 +289,62 @@ const ClientDetailPage = () => {
     },
   });
 
+  // Remove program mutation
+  const removeProgram = useMutation({
+    mutationFn: async () => {
+      if (!clientProgram) return;
+
+      // Delete scheduled workouts for this client
+      const { error: workoutsError } = await supabase
+        .from("user_workouts")
+        .delete()
+        .eq("user_id", clientId)
+        .eq("completed", false);
+
+      if (workoutsError) throw workoutsError;
+
+      // Delete the client_program record
+      const { error } = await supabase
+        .from("client_programs")
+        .delete()
+        .eq("id", clientProgram.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-program", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client-workouts", clientId] });
+      toast.success("Program removed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove program: " + error.message);
+    },
+  });
+
   // Assign program mutation
   const assignProgram = useMutation({
-    mutationFn: async ({ programId, startDate }: { programId: string; startDate: string }) => {
-      // First, get the program details with workout templates
+    mutationFn: async ({ programId, startDate, isChange }: { programId: string; startDate: string; isChange?: boolean }) => {
+      // If changing program, first remove the existing one
+      if (isChange && clientProgram) {
+        // Delete incomplete scheduled workouts
+        const { error: workoutsError } = await supabase
+          .from("user_workouts")
+          .delete()
+          .eq("user_id", clientId)
+          .eq("completed", false);
+
+        if (workoutsError) throw workoutsError;
+
+        // Delete the old client_program record
+        const { error: deleteError } = await supabase
+          .from("client_programs")
+          .delete()
+          .eq("id", clientProgram.id);
+
+        if (deleteError) throw deleteError;
+      }
+
+      // Get the program details with workout templates
       const { data: program, error: programError } = await supabase
         .from("programs")
         .select("*, workout_templates(*)")
@@ -548,18 +600,39 @@ const ClientDetailPage = () => {
           </CardHeader>
           <CardContent>
             {clientProgram ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-foreground text-lg">
-                    {(clientProgram as any).programs?.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Started: {format(new Date(clientProgram.start_date), "MMMM d, yyyy")}
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground text-lg">
+                      {(clientProgram as any).programs?.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Started: {format(new Date(clientProgram.start_date), "MMMM d, yyyy")}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {(clientProgram as any).programs?.duration_weeks}w / {(clientProgram as any).programs?.days_per_week}x per week
+                  </Badge>
                 </div>
-                <Badge variant="secondary">
-                  {(clientProgram as any).programs?.duration_weeks}w / {(clientProgram as any).programs?.days_per_week}x per week
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsAssignProgramOpen(true)}
+                  >
+                    Change Program
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => removeProgram.mutate()}
+                    disabled={removeProgram.isPending}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {removeProgram.isPending ? "Removing..." : "Remove Program"}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4 py-4">
@@ -925,9 +998,14 @@ const ClientDetailPage = () => {
       <Dialog open={isAssignProgramOpen} onOpenChange={setIsAssignProgramOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Assign Program</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {clientProgram ? "Change Program" : "Assign Program"}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Select a program and start date for {client?.full_name || "this client"}.
+              {clientProgram 
+                ? `This will replace the current program and remove incomplete scheduled workouts for ${client?.full_name || "this client"}.`
+                : `Select a program and start date for ${client?.full_name || "this client"}.`
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -959,12 +1037,16 @@ const ClientDetailPage = () => {
             <Button
               onClick={() => assignProgram.mutate({ 
                 programId: selectedProgramId, 
-                startDate: programStartDate 
+                startDate: programStartDate,
+                isChange: !!clientProgram
               })}
               disabled={!selectedProgramId || !programStartDate || assignProgram.isPending}
               className="w-full bg-primary hover:bg-primary/90"
             >
-              {assignProgram.isPending ? "Assigning..." : "Assign Program"}
+              {assignProgram.isPending 
+                ? (clientProgram ? "Changing..." : "Assigning...") 
+                : (clientProgram ? "Change Program" : "Assign Program")
+              }
             </Button>
           </div>
         </DialogContent>
