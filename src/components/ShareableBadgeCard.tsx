@@ -19,45 +19,46 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
       switch (category) {
         case "streak":
           return {
-            gradient: "linear-gradient(145deg, #FF512F 0%, #DD2476 50%, #FF512F 100%)",
-            accent: "#FF512F",
-            secondary: "#DD2476",
-            glow: "rgba(255, 81, 47, 0.4)",
+            primary: "#FF6B35",
+            secondary: "#F72585",
+            tertiary: "#FFB347",
+            dark: "#7B2D26",
+            glow: "rgba(247, 37, 133, 0.5)",
           };
         case "weight":
           return {
-            gradient: "linear-gradient(145deg, #667EEA 0%, #764BA2 50%, #F093FB 100%)",
-            accent: "#667EEA",
-            secondary: "#764BA2",
-            glow: "rgba(102, 126, 234, 0.4)",
+            primary: "#7B68EE",
+            secondary: "#4158D0",
+            tertiary: "#C850C0",
+            dark: "#2D1B69",
+            glow: "rgba(123, 104, 238, 0.5)",
           };
         case "workouts":
           return {
-            gradient: "linear-gradient(145deg, #11998E 0%, #38EF7D 50%, #11998E 100%)",
-            accent: "#38EF7D",
-            secondary: "#11998E",
-            glow: "rgba(56, 239, 125, 0.4)",
+            primary: "#00D9A5",
+            secondary: "#00B4D8",
+            tertiary: "#48CAE4",
+            dark: "#065A52",
+            glow: "rgba(0, 217, 165, 0.5)",
           };
         default:
           return {
-            gradient: "linear-gradient(145deg, #00D4FF 0%, #0066FF 50%, #00D4FF 100%)",
-            accent: "#00D4FF",
-            secondary: "#0066FF",
-            glow: "rgba(0, 212, 255, 0.4)",
+            primary: "#00B4D8",
+            secondary: "#0077B6",
+            tertiary: "#48CAE4",
+            dark: "#023E73",
+            glow: "rgba(0, 180, 216, 0.5)",
           };
       }
     };
 
-    // Inspiring quotes based on badge name or category
     const getInspiringQuote = () => {
       const name = badge.name.toLowerCase();
       
-      // First workout / beginner badges
       if (name.includes("first") || name.includes("beginner") || badge.threshold === 1) {
         return "The journey of a thousand miles begins with a single step.";
       }
       
-      // Streak badges
       if (badge.category === "streak") {
         if (badge.threshold >= 52) return "Champions are made through consistency, not perfection.";
         if (badge.threshold >= 26) return "Half a year of dedication. Unstoppable.";
@@ -66,7 +67,6 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
         return "Consistency beats intensity. Every. Single. Time.";
       }
       
-      // Weight badges
       if (badge.category === "weight") {
         if (badge.threshold >= 10000000) return "Ten million pounds. Legend status achieved.";
         if (badge.threshold >= 5000000) return "Five million pounds moved. You're built different.";
@@ -76,7 +76,6 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
         return "Every pound lifted is a step toward greatness.";
       }
       
-      // Workout count badges
       if (badge.category === "workouts") {
         if (badge.threshold >= 500) return "500 workouts. You've mastered the art of showing up.";
         if (badge.threshold >= 250) return "A quarter thousand. Relentless.";
@@ -92,75 +91,27 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
 
     const theme = getCategoryTheme(badge.category);
 
-    // Generate the scalloped badge path (Peloton style)
-    const generateBadgePath = () => {
-      const points = 16;
-      const outerRadius = 115;
-      const innerRadius = 100;
-      const centerX = 130;
-      const centerY = 130;
-      
-      let path = "";
-      
-      for (let i = 0; i < points; i++) {
-        const angle = (i * 2 * Math.PI) / points - Math.PI / 2;
-        const nextAngle = ((i + 1) * 2 * Math.PI) / points - Math.PI / 2;
-        const midAngle = (angle + nextAngle) / 2;
-        
-        const outerX = centerX + outerRadius * Math.cos(angle);
-        const outerY = centerY + outerRadius * Math.sin(angle);
-        const innerX = centerX + innerRadius * Math.cos(midAngle);
-        const innerY = centerY + innerRadius * Math.sin(midAngle);
-        
-        if (i === 0) {
-          path += `M ${outerX} ${outerY}`;
-        }
-        
-        path += ` Q ${innerX} ${innerY} ${centerX + outerRadius * Math.cos(nextAngle)} ${centerY + outerRadius * Math.sin(nextAngle)}`;
-      }
-      
-      path += " Z";
-      return path;
-    };
-
     return (
       <div
         ref={ref}
         className="w-[400px] h-[520px] relative overflow-hidden"
         style={{ 
           fontFamily: "'Montserrat', 'Inter', system-ui, sans-serif",
-          background: "linear-gradient(160deg, #0D0D12 0%, #141420 40%, #0A0A0F 100%)",
+          background: "linear-gradient(160deg, #08080C 0%, #0F0F18 40%, #08080C 100%)",
           borderRadius: "24px",
         }}
       >
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0">
-          {/* Radial burst lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" viewBox="0 0 400 520">
-            {Array.from({ length: 24 }).map((_, i) => {
-              const angle = (i * 15 * Math.PI) / 180;
-              const x2 = 200 + 400 * Math.cos(angle);
-              const y2 = 200 + 400 * Math.sin(angle);
-              return (
-                <line
-                  key={i}
-                  x1="200"
-                  y1="200"
-                  x2={x2}
-                  y2={y2}
-                  stroke="#ffffff"
-                  strokeWidth="1"
-                />
-              );
-            })}
-          </svg>
-          
-          {/* Floating particles */}
-          <div className="absolute top-24 left-12 w-2 h-2 rounded-full bg-white/10" />
-          <div className="absolute top-40 right-20 w-1.5 h-1.5 rounded-full bg-white/8" />
-          <div className="absolute bottom-40 left-16 w-2.5 h-2.5 rounded-full bg-white/6" />
-          <div className="absolute top-1/3 right-10 w-1.5 h-1.5 rounded-full bg-white/10" />
-        </div>
+        {/* Subtle grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: "30px 30px",
+          }}
+        />
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-5">
@@ -169,124 +120,165 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
         </div>
 
         {/* Main badge */}
-        <div className="relative z-10 flex flex-col items-center justify-center mt-6">
+        <div className="relative z-10 flex flex-col items-center justify-center mt-4">
           
-          {/* 3D Badge container */}
-          <div className="relative" style={{ perspective: "600px" }}>
+          {/* Badge container with 3D effect */}
+          <div className="relative" style={{ perspective: "800px" }}>
             
-            {/* Shadow layer */}
+            {/* Deep shadow */}
             <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2"
+              className="absolute top-8 left-1/2 -translate-x-1/2"
               style={{
-                width: "200px",
-                height: "200px",
+                width: "180px",
+                height: "180px",
                 borderRadius: "50%",
-                background: "rgba(0,0,0,0.6)",
+                background: "rgba(0,0,0,0.8)",
                 filter: "blur(40px)",
               }}
             />
             
-            {/* Outer glow ring */}
+            {/* Glow effect */}
             <div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full"
               style={{
-                background: `radial-gradient(circle, ${theme.glow} 0%, transparent 60%)`,
+                background: `radial-gradient(circle, ${theme.glow} 0%, transparent 50%)`,
               }}
             />
 
             {/* Main badge SVG */}
             <svg 
-              width="260" 
-              height="260" 
-              viewBox="0 0 260 260"
+              width="280" 
+              height="280" 
+              viewBox="0 0 280 280"
               className="relative z-10"
               style={{
-                filter: `drop-shadow(0 15px 40px ${theme.glow}) drop-shadow(0 5px 10px rgba(0,0,0,0.5))`,
+                filter: `drop-shadow(0 20px 40px ${theme.glow}) drop-shadow(0 8px 16px rgba(0,0,0,0.6))`,
               }}
             >
-              {/* Badge definitions */}
               <defs>
-                {/* Main gradient */}
-                <linearGradient id={`badge-gradient-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={theme.accent} />
+                {/* Main metallic gradient */}
+                <linearGradient id={`metal-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={theme.tertiary} />
+                  <stop offset="25%" stopColor={theme.primary} />
                   <stop offset="50%" stopColor={theme.secondary} />
-                  <stop offset="100%" stopColor={theme.accent} />
+                  <stop offset="75%" stopColor={theme.primary} />
+                  <stop offset="100%" stopColor={theme.tertiary} />
                 </linearGradient>
                 
-                {/* Inner shadow gradient */}
-                <radialGradient id={`inner-shadow-${badge.id}`} cx="30%" cy="30%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
-                  <stop offset="100%" stopColor="rgba(0,0,0,0.15)" />
+                {/* Shine overlay */}
+                <linearGradient id={`shine-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
+                  <stop offset="30%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="70%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="100%" stopColor="rgba(255,255,255,0.2)" />
+                </linearGradient>
+                
+                {/* Inner circle gradient */}
+                <radialGradient id={`inner-${badge.id}`} cx="40%" cy="40%">
+                  <stop offset="0%" stopColor={theme.dark} />
+                  <stop offset="100%" stopColor="#0a0a10" />
                 </radialGradient>
                 
-                {/* Rim light */}
-                <linearGradient id={`rim-light-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.5)" />
-                  <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
-                  <stop offset="100%" stopColor="rgba(255,255,255,0.4)" />
+                {/* Star gradient */}
+                <linearGradient id={`star-${badge.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={theme.tertiary} />
+                  <stop offset="100%" stopColor={theme.primary} />
                 </linearGradient>
               </defs>
               
-              {/* Scalloped badge shape */}
+              {/* Outer scalloped ring - Peloton style with deeper waves */}
               <path 
-                d={generateBadgePath()} 
-                fill={`url(#badge-gradient-${badge.id})`}
-                stroke={`url(#rim-light-${badge.id})`}
-                strokeWidth="2"
+                d={generateScallopedPath(140, 140, 125, 105, 12)} 
+                fill={`url(#metal-${badge.id})`}
               />
               
-              {/* Inner highlight overlay */}
+              {/* Shine overlay on scalloped ring */}
               <path 
-                d={generateBadgePath()} 
-                fill={`url(#inner-shadow-${badge.id})`}
+                d={generateScallopedPath(140, 140, 125, 105, 12)} 
+                fill={`url(#shine-${badge.id})`}
+              />
+              
+              {/* Inner ring border */}
+              <circle 
+                cx="140" 
+                cy="140" 
+                r="88" 
+                fill="none"
+                stroke={theme.primary}
+                strokeWidth="3"
+                opacity="0.6"
               />
               
               {/* Inner dark circle */}
               <circle 
-                cx="130" 
-                cy="130" 
-                r="75" 
-                fill="rgba(10,10,15,0.85)"
-                stroke="rgba(255,255,255,0.1)"
-                strokeWidth="1"
+                cx="140" 
+                cy="140" 
+                r="85" 
+                fill={`url(#inner-${badge.id})`}
               />
               
-              {/* Inner gradient circle */}
+              {/* Decorative inner ring */}
               <circle 
-                cx="130" 
-                cy="130" 
-                r="70" 
-                fill="rgba(15,15,22,0.9)"
+                cx="140" 
+                cy="140" 
+                r="75" 
+                fill="none"
+                stroke={theme.primary}
+                strokeWidth="1"
+                opacity="0.3"
+                strokeDasharray="4 4"
               />
+              
+              {/* Decorative stars around the badge */}
+              {[0, 72, 144, 216, 288].map((angle, i) => {
+                const rad = (angle * Math.PI) / 180;
+                const x = 140 + 98 * Math.cos(rad - Math.PI / 2);
+                const y = 140 + 98 * Math.sin(rad - Math.PI / 2);
+                return (
+                  <g key={i} transform={`translate(${x}, ${y})`}>
+                    <polygon
+                      points="0,-6 1.5,-2 6,-2 2.5,1 4,5 0,2.5 -4,5 -2.5,1 -6,-2 -1.5,-2"
+                      fill={`url(#star-${badge.id})`}
+                    />
+                  </g>
+                );
+              })}
             </svg>
 
             {/* Badge emoji overlay */}
             <div 
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20"
-              style={{ width: "140px", height: "140px" }}
+              style={{ width: "150px", height: "150px" }}
             >
-              <span className="text-7xl drop-shadow-lg">{badge.icon_url}</span>
+              <span 
+                className="text-8xl"
+                style={{ 
+                  filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.5))",
+                }}
+              >
+                {badge.icon_url}
+              </span>
             </div>
           </div>
 
           {/* Badge name */}
           <h2 
-            className="text-3xl font-black text-center mt-5 mb-2 tracking-tight text-white"
-            style={{ textShadow: `0 2px 30px ${theme.glow}` }}
+            className="text-3xl font-black text-center mt-4 mb-2 tracking-tight text-white uppercase"
+            style={{ textShadow: `0 2px 20px ${theme.glow}` }}
           >
             {badge.name}
           </h2>
 
           {/* Earned date */}
-          <p className="text-white/40 text-sm font-medium mb-5">
+          <p className="text-white/40 text-sm font-medium mb-4">
             Earned {format(earnedAt, "MMMM d, yyyy")}
           </p>
 
           {/* Inspiring quote */}
-          <div className="px-8">
+          <div className="px-10">
             <p 
               className="text-center text-sm italic leading-relaxed"
-              style={{ color: theme.accent, opacity: 0.9 }}
+              style={{ color: theme.primary, opacity: 0.85 }}
             >
               "{getInspiringQuote()}"
             </p>
@@ -298,22 +290,62 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
           <div className="flex items-center justify-center">
             <span 
               className="text-xs font-bold tracking-[0.15em]"
-              style={{ color: theme.accent, opacity: 0.6 }}
+              style={{ color: theme.primary, opacity: 0.5 }}
             >
               WWW.LOUROTRAINING.COM
             </span>
           </div>
         </div>
 
-        {/* Subtle corner accent */}
+        {/* Subtle corner glow */}
         <div 
-          className="absolute -top-32 -right-32 w-64 h-64 rounded-full opacity-10 blur-3xl"
-          style={{ background: theme.accent }}
+          className="absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-10 blur-3xl"
+          style={{ background: theme.primary }}
         />
       </div>
     );
   }
 );
+
+// Generate deep scalloped path like Peloton badges
+function generateScallopedPath(
+  cx: number, 
+  cy: number, 
+  outerR: number, 
+  innerR: number, 
+  points: number
+): string {
+  let path = "";
+  
+  for (let i = 0; i < points; i++) {
+    const angle1 = (i * 2 * Math.PI) / points - Math.PI / 2;
+    const angle2 = ((i + 0.5) * 2 * Math.PI) / points - Math.PI / 2;
+    const angle3 = ((i + 1) * 2 * Math.PI) / points - Math.PI / 2;
+    
+    const x1 = cx + outerR * Math.cos(angle1);
+    const y1 = cy + outerR * Math.sin(angle1);
+    const x2 = cx + innerR * Math.cos(angle2);
+    const y2 = cy + innerR * Math.sin(angle2);
+    const x3 = cx + outerR * Math.cos(angle3);
+    const y3 = cy + outerR * Math.sin(angle3);
+    
+    if (i === 0) {
+      path += `M ${x1} ${y1}`;
+    }
+    
+    // Create smooth curves for the scallop
+    const cp1x = cx + (outerR * 0.85) * Math.cos(angle1 + (angle2 - angle1) * 0.5);
+    const cp1y = cy + (outerR * 0.85) * Math.sin(angle1 + (angle2 - angle1) * 0.5);
+    const cp2x = cx + (outerR * 0.85) * Math.cos(angle2 + (angle3 - angle2) * 0.5);
+    const cp2y = cy + (outerR * 0.85) * Math.sin(angle2 + (angle3 - angle2) * 0.5);
+    
+    path += ` C ${cp1x} ${cp1y} ${x2} ${y2} ${x2} ${y2}`;
+    path += ` C ${x2} ${y2} ${cp2x} ${cp2y} ${x3} ${y3}`;
+  }
+  
+  path += " Z";
+  return path;
+}
 
 ShareableBadgeCard.displayName = "ShareableBadgeCard";
 
