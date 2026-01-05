@@ -557,6 +557,7 @@ export type Database = {
           created_at: string | null
           duration_seconds: number | null
           id: string
+          intensity_rating: number | null
           scheduled_date: string
           user_id: string
           workout_template_id: string
@@ -567,6 +568,7 @@ export type Database = {
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
+          intensity_rating?: number | null
           scheduled_date: string
           user_id: string
           workout_template_id: string
@@ -577,6 +579,7 @@ export type Database = {
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
+          intensity_rating?: number | null
           scheduled_date?: string
           user_id?: string
           workout_template_id?: string

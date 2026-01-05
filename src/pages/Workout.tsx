@@ -11,6 +11,8 @@ import { rescheduleRemainingWorkouts } from "@/hooks/useRescheduleWorkouts";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
 import { useBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/useBadges";
 import BadgeCelebration from "@/components/BadgeCelebration";
+import WorkoutCompletionDialog from "@/components/WorkoutCompletionDialog";
+import ShareDialog from "@/components/ShareDialog";
 
 interface Exercise {
   id: string;
@@ -62,7 +64,18 @@ const Workout = () => {
   const [celebrationQueue, setCelebrationQueue] = useState<Badge[]>([]);
   const { data: allBadges } = useBadges();
   const checkBadges = useCheckAndAwardBadges();
-  const { refetch: refetchStats } = useUserStats();
+  const { data: userStats, refetch: refetchStats } = useUserStats();
+  
+  // Workout completion and share state
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [completedWorkoutData, setCompletedWorkoutData] = useState<{
+    workoutName: string;
+    date: Date;
+    duration: string;
+    totalWeight: number;
+    intensityRating: number;
+  } | null>(null);
   
   // Timer state - now based on timestamps for persistence
   const [sessionState, setSessionState] = useState<SessionState | null>(null);
@@ -798,97 +811,9 @@ const Workout = () => {
             <Button
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg glow"
               disabled={progress < 100}
-              onClick={async () => {
-                if (progress === 100 && id && user) {
-                  const completedAt = new Date().toISOString();
-
-                  // Save exercise logs to the database
-                  const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
-                    ([exerciseId, sets]) =>
-                      sets.map((set, index) => ({
-                        user_id: user.id,
-                        user_workout_id: id,
-                        exercise_id: exerciseId,
-                        set_number: index + 1,
-                        reps: set.reps || "0",
-                        weight: set.weight || null,
-                        completed_at: completedAt,
-                        swapped_exercise_name: swappedExercises[exerciseId] || null,
-                      }))
-                  );
-
-                  // Warn if no exercise data to save
-                  if (exerciseLogsToInsert.length === 0) {
-                    console.warn("No exercise logs to save - exerciseWeights:", exerciseWeights);
-                    toast.warning("No exercise data was logged. Your workout will be saved without set details.");
-                  }
-
-                  if (exerciseLogsToInsert.length > 0) {
-                    const { error: logsError } = await supabase
-                      .from("exercise_logs")
-                      .insert(exerciseLogsToInsert);
-
-                    if (logsError) {
-                      console.error("Failed to save exercise logs:", logsError);
-                      toast.error("Failed to save exercise logs");
-                      return;
-                    }
-                  }
-
-                  const { error } = await supabase
-                    .from("user_workouts")
-                    .update({
-                      completed: true,
-                      completed_at: completedAt,
-                      duration_seconds: elapsedSeconds,
-                    })
-                    .eq("id", id);
-
-                  if (error) {
-                    toast.error("Failed to save workout");
-                  } else {
-                    // Clear session from localStorage
-                    localStorage.removeItem(getSessionKey(id));
-
-                    // Reschedule remaining workouts to maintain weekday pattern
-                    try {
-                      await rescheduleRemainingWorkouts(user.id, id);
-                    } catch (rescheduleError) {
-                      console.error("Failed to reschedule workouts:", rescheduleError);
-                    }
-
-                    toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
-                    queryClient.invalidateQueries({ queryKey: ["next-workout"] });
-                    queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
-                    queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
-                    queryClient.invalidateQueries({ queryKey: ["user-stats"] });
-                    queryClient.invalidateQueries({ queryKey: ["personal-records"] });
-                    queryClient.invalidateQueries({ queryKey: ["user-full-stats"] });
-                    
-                    // Check for new badges after workout completion
-                    try {
-                      const { data: updatedStats } = await refetchStats();
-                      if (updatedStats && allBadges) {
-                        checkBadges.mutate(updatedStats, {
-                          onSuccess: (newBadgeIds) => {
-                            if (newBadgeIds && newBadgeIds.length > 0) {
-                              const newBadges = allBadges.filter(b => newBadgeIds.includes(b.id));
-                              setCelebrationQueue(newBadges);
-                            } else {
-                              navigate("/");
-                            }
-                          },
-                          onError: () => {
-                            navigate("/");
-                          }
-                        });
-                      } else {
-                        navigate("/");
-                      }
-                    } catch {
-                      navigate("/");
-                    }
-                  }
+              onClick={() => {
+                if (progress === 100) {
+                  setShowCompletionDialog(true);
                 }
               }}
             >
@@ -897,6 +822,133 @@ const Workout = () => {
           </div>
         </div>
       )}
+
+      {/* Workout Completion Dialog */}
+      <WorkoutCompletionDialog
+        isOpen={showCompletionDialog}
+        workoutName={workout?.workout_template?.title || "Workout"}
+        duration={formatTime(elapsedSeconds)}
+        totalWeight={Math.round(displayedTotalWeight)}
+        onCancel={() => setShowCompletionDialog(false)}
+        onComplete={async (intensityRating) => {
+          if (!id || !user) return;
+          
+          setShowCompletionDialog(false);
+          const completedAt = new Date().toISOString();
+
+          // Save exercise logs to the database
+          const exerciseLogsToInsert = Object.entries(exerciseWeights).flatMap(
+            ([exerciseId, sets]) =>
+              sets.map((set, index) => ({
+                user_id: user.id,
+                user_workout_id: id,
+                exercise_id: exerciseId,
+                set_number: index + 1,
+                reps: set.reps || "0",
+                weight: set.weight || null,
+                completed_at: completedAt,
+                swapped_exercise_name: swappedExercises[exerciseId] || null,
+              }))
+          );
+
+          // Warn if no exercise data to save
+          if (exerciseLogsToInsert.length === 0) {
+            console.warn("No exercise logs to save - exerciseWeights:", exerciseWeights);
+            toast.warning("No exercise data was logged. Your workout will be saved without set details.");
+          }
+
+          if (exerciseLogsToInsert.length > 0) {
+            const { error: logsError } = await supabase
+              .from("exercise_logs")
+              .insert(exerciseLogsToInsert);
+
+            if (logsError) {
+              console.error("Failed to save exercise logs:", logsError);
+              toast.error("Failed to save exercise logs");
+              return;
+            }
+          }
+
+          const { error } = await supabase
+            .from("user_workouts")
+            .update({
+              completed: true,
+              completed_at: completedAt,
+              duration_seconds: elapsedSeconds,
+              intensity_rating: intensityRating,
+            })
+            .eq("id", id);
+
+          if (error) {
+            toast.error("Failed to save workout");
+          } else {
+            // Clear session from localStorage
+            localStorage.removeItem(getSessionKey(id));
+
+            // Reschedule remaining workouts to maintain weekday pattern
+            try {
+              await rescheduleRemainingWorkouts(user.id, id);
+            } catch (rescheduleError) {
+              console.error("Failed to reschedule workouts:", rescheduleError);
+            }
+
+            toast.success(`Workout completed in ${formatTime(elapsedSeconds)}!`);
+            queryClient.invalidateQueries({ queryKey: ["next-workout"] });
+            queryClient.invalidateQueries({ queryKey: ["upcomingWorkouts"] });
+            queryClient.invalidateQueries({ queryKey: ["client-workouts"] });
+            queryClient.invalidateQueries({ queryKey: ["user-stats"] });
+            queryClient.invalidateQueries({ queryKey: ["personal-records"] });
+            queryClient.invalidateQueries({ queryKey: ["user-full-stats"] });
+
+            // Store workout data for sharing
+            setCompletedWorkoutData({
+              workoutName: workout?.workout_template?.title || "Workout",
+              date: new Date(),
+              duration: formatTime(elapsedSeconds),
+              totalWeight: Math.round(displayedTotalWeight),
+              intensityRating,
+            });
+            
+            // Check for new badges after workout completion
+            try {
+              const { data: updatedStats } = await refetchStats();
+              if (updatedStats && allBadges) {
+                checkBadges.mutate(updatedStats, {
+                  onSuccess: (newBadgeIds) => {
+                    if (newBadgeIds && newBadgeIds.length > 0) {
+                      const newBadges = allBadges.filter(b => newBadgeIds.includes(b.id));
+                      setCelebrationQueue(newBadges);
+                    } else {
+                      // No badges, show share dialog
+                      setShowShareDialog(true);
+                    }
+                  },
+                  onError: () => {
+                    setShowShareDialog(true);
+                  }
+                });
+              } else {
+                setShowShareDialog(true);
+              }
+            } catch {
+              setShowShareDialog(true);
+            }
+          }
+        }}
+      />
+
+      {/* Share Dialog */}
+      <ShareDialog
+        isOpen={showShareDialog}
+        onClose={() => {
+          setShowShareDialog(false);
+          navigate("/");
+        }}
+        data={completedWorkoutData ? {
+          type: "workout",
+          ...completedWorkoutData,
+        } : null}
+      />
     </div>
   );
 };
