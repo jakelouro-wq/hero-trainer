@@ -138,7 +138,7 @@ const BadgesPage = () => {
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              {userBadges?.length || 0} of {allBadges?.length || 0} badges earned
+              {userBadges?.length || 0} badges earned
             </p>
           </div>
           <img 
