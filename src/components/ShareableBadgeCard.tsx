@@ -297,10 +297,10 @@ const ShareableBadgeCard = forwardRef<HTMLDivElement, ShareableBadgeCardProps>(
         <div className="absolute bottom-0 left-0 right-0 z-10 px-6 py-4">
           <div className="flex items-center justify-center">
             <span 
-              className="text-xs font-bold tracking-[0.2em]"
+              className="text-xs font-bold tracking-[0.15em]"
               style={{ color: theme.accent, opacity: 0.6 }}
             >
-              LOURO.APP
+              WWW.LOUROTRAINING.COM
             </span>
           </div>
         </div>
