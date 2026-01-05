@@ -1,5 +1,4 @@
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { DraggableWorkoutCard } from "./DraggableWorkoutCard";
 
@@ -55,26 +54,24 @@ export const DroppableDayColumn = ({
     data: { day },
   });
 
-  const workoutIds = workouts.map(w => w.id);
-
   return (
     <div
       ref={setNodeRef}
       className={`border-r border-border last:border-r-0 min-h-[400px] p-2 space-y-2 transition-colors ${
-        isOver ? 'bg-primary/5' : ''
+        isOver ? 'bg-primary/10 border-primary' : ''
       }`}
     >
-      <SortableContext items={workoutIds} strategy={verticalListSortingStrategy}>
-        {workouts.length === 0 ? (
-          <button
-            onClick={onCreateWorkout}
-            className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
-          >
-            <Plus className="w-4 h-4 mx-auto mb-1" />
-            CREATE SESSION
-          </button>
-        ) : (
-          workouts.map((workout) => (
+      {workouts.length === 0 ? (
+        <button
+          onClick={onCreateWorkout}
+          className="w-full py-6 text-xs text-primary hover:text-primary/80 border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+        >
+          <Plus className="w-4 h-4 mx-auto mb-1" />
+          CREATE SESSION
+        </button>
+      ) : (
+        <>
+          {workouts.map((workout) => (
             <DraggableWorkoutCard
               key={workout.id}
               workout={workout}
@@ -89,9 +86,15 @@ export const DroppableDayColumn = ({
               onUnlinkExercise={(exerciseId) => onUnlinkExercise(exerciseId, workout.id)}
               getExerciseLabel={getExerciseLabel}
             />
-          ))
-        )}
-      </SortableContext>
+          ))}
+          <button
+            onClick={onCreateWorkout}
+            className="w-full py-3 text-xs text-muted-foreground hover:text-primary border border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+          >
+            <Plus className="w-3 h-3 mx-auto" />
+          </button>
+        </>
+      )}
     </div>
   );
 };

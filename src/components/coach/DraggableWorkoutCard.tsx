@@ -1,4 +1,4 @@
-import { useSortable } from "@dnd-kit/sortable";
+import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,14 +57,13 @@ export const DraggableWorkoutCard = ({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: workout.id });
+  } = useDraggable({ id: workout.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : undefined,
   };
 
   const exercises = [...workout.exercises].sort((a, b) => a.order_index - b.order_index);
