@@ -72,6 +72,12 @@ const ProgramDetailPage = () => {
     rir: string;
     superset_group: string;
   } | null>(null);
+  const [pendingDayChange, setPendingDayChange] = useState<{
+    workoutId: string;
+    workoutTitle: string;
+    oldDay: number;
+    newDay: number;
+  } | null>(null);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -560,22 +566,74 @@ const ProgramDetailPage = () => {
 
   // Mutation for moving workout to a different day
   const moveWorkoutToDay = useMutation({
-    mutationFn: async ({ workoutId, newDay }: { workoutId: string; newDay: number }) => {
-      const { error } = await supabase
-        .from("workout_templates")
-        .update({ day_number: newDay })
-        .eq("id", workoutId);
-      
-      if (error) throw error;
+    mutationFn: async ({ workoutId, newDay, applyToRemaining = false }: { workoutId: string; newDay: number; applyToRemaining?: boolean }) => {
+      const workout = workouts?.find(w => w.id === workoutId);
+      if (!workout) throw new Error("Workout not found");
+
+      if (applyToRemaining) {
+        // Find all workouts with the same title on the old day in future weeks
+        const oldDay = workout.day_number;
+        const currentWeekNum = workout.week_number || 1;
+        const workoutsToUpdate = workouts?.filter(w => 
+          w.title === workout.title && 
+          w.day_number === oldDay && 
+          (w.week_number || 1) >= currentWeekNum
+        ) || [];
+
+        for (const w of workoutsToUpdate) {
+          const { error } = await supabase
+            .from("workout_templates")
+            .update({ day_number: newDay })
+            .eq("id", w.id);
+          if (error) throw error;
+        }
+        return workoutsToUpdate.length;
+      } else {
+        const { error } = await supabase
+          .from("workout_templates")
+          .update({ day_number: newDay })
+          .eq("id", workoutId);
+        if (error) throw error;
+        return 1;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["program-workouts", id] });
-      toast.success("Workout moved successfully");
+      toast.success(count > 1 ? `${count} workouts moved successfully` : "Workout moved successfully");
+      setPendingDayChange(null);
     },
     onError: (error) => {
       toast.error("Failed to move workout: " + error.message);
     },
   });
+
+  // Handler for day change from dropdown
+  const handleDayChangeRequest = (workoutId: string, newDay: number) => {
+    const workout = workouts?.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    // Check if there are matching workouts in future weeks
+    const oldDay = workout.day_number;
+    const currentWeekNum = workout.week_number || 1;
+    const matchingWorkouts = workouts?.filter(w => 
+      w.title === workout.title && 
+      w.day_number === oldDay && 
+      (w.week_number || 1) > currentWeekNum
+    ) || [];
+
+    if (matchingWorkouts.length > 0) {
+      // Show confirmation dialog
+      setPendingDayChange({
+        workoutId,
+        workoutTitle: workout.title,
+        oldDay: oldDay || 1,
+        newDay,
+      });
+    } else {
+      // No matching workouts, just move this one
+      moveWorkoutToDay.mutate({ workoutId, newDay });
+    }
+  };
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -695,9 +753,9 @@ const ProgramDetailPage = () => {
     );
   }
 
-  const daysPerWeek = program?.days_per_week || 7;
+  const daysPerWeek = 7; // Always show full week
   const totalWeeks = program?.duration_weeks || 4;
-  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].slice(0, daysPerWeek);
+  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   // Get workouts for current week
   const currentWeekWorkouts = workouts?.filter(w => w.week_number === currentWeek) || [];
@@ -833,7 +891,7 @@ const ProgramDetailPage = () => {
                     onDuplicateWorkout={(workoutId) => duplicateWorkout.mutate(workoutId)}
                     onRepeatWorkout={(workoutId) => repeatWorkout.mutate(workoutId)}
                     onDeleteWorkout={(workoutId) => deleteWorkout.mutate(workoutId)}
-                    onChangeWorkoutDay={(workoutId, newDay) => moveWorkoutToDay.mutate({ workoutId, newDay })}
+                    onChangeWorkoutDay={(workoutId, newDay) => handleDayChangeRequest(workoutId, newDay)}
                     onEditExercise={(exercise) => openEditExercise(exercise)}
                     onDeleteExercise={(exerciseId) => deleteExercise.mutate(exerciseId)}
                     onMoveExercise={(exerciseId, workoutId, direction) => 
@@ -1191,6 +1249,64 @@ const ProgramDetailPage = () => {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Day Change Confirmation Dialog */}
+      <Dialog open={!!pendingDayChange} onOpenChange={(open) => !open && setPendingDayChange(null)}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Change Day for All Weeks?</DialogTitle>
+            <DialogDescription>
+              "{pendingDayChange?.workoutTitle}" exists in future weeks on{' '}
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
+                (pendingDayChange?.oldDay || 1) - 1
+              ]}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Button
+              onClick={() => {
+                if (pendingDayChange) {
+                  moveWorkoutToDay.mutate({
+                    workoutId: pendingDayChange.workoutId,
+                    newDay: pendingDayChange.newDay,
+                    applyToRemaining: true,
+                  });
+                }
+              }}
+              disabled={moveWorkoutToDay.isPending}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              Move all to{' '}
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
+                (pendingDayChange?.newDay || 1) - 1
+              ]}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingDayChange) {
+                  moveWorkoutToDay.mutate({
+                    workoutId: pendingDayChange.workoutId,
+                    newDay: pendingDayChange.newDay,
+                    applyToRemaining: false,
+                  });
+                }
+              }}
+              disabled={moveWorkoutToDay.isPending}
+              className="w-full"
+            >
+              Move only this week
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setPendingDayChange(null)}
+              className="w-full text-muted-foreground"
+            >
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
