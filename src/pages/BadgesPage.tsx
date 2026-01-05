@@ -146,9 +146,10 @@ const BadgesPage = () => {
                 return (
                   <div
                     key={badge.id}
+                    onClick={() => isEarned && setCelebrationBadge(badge)}
                     className={`relative rounded-xl p-4 border transition-all duration-300 group ${
                       isEarned
-                        ? "card-gradient border-primary/50 shadow-lg shadow-primary/20 hover:scale-105"
+                        ? "card-gradient border-primary/50 shadow-lg shadow-primary/20 hover:scale-105 cursor-pointer"
                         : "bg-secondary/30 border-border opacity-60 hover:opacity-80"
                     }`}
                   >
