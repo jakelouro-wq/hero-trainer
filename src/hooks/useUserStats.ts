@@ -1,24 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useWeightUnit } from "./useWeightUnit";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 export const useUserStats = () => {
   const { user } = useAuth();
+  const { weightUnit, isLoading: weightUnitLoading } = useWeightUnit();
 
   return useQuery({
-    queryKey: ["user-stats", user?.id],
+    queryKey: ["user-stats", user?.id, weightUnit],
     queryFn: async () => {
       if (!user?.id) return null;
-
-      // Get user's weight unit preference
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("weight_unit")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const userWeightUnit = profile?.weight_unit || "lb";
 
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
@@ -66,11 +59,11 @@ export const useUserStats = () => {
       if (allLogs) {
         // Track max weight per exercise as we iterate chronologically
         const maxWeightByExercise = new Map<string, number>();
-        
+
         allLogs.forEach((log) => {
           const weight = parseFloat(log.weight || "0") || 0;
           const currentMax = maxWeightByExercise.get(log.exercise_id) || 0;
-          
+
           if (weight > currentMax) {
             maxWeightByExercise.set(log.exercise_id, weight);
             // Check if this PR was set this week
@@ -87,7 +80,8 @@ export const useUserStats = () => {
       // Get current program progress
       const { data: clientProgram } = await supabase
         .from("client_programs")
-        .select(`
+        .select(
+          `
           id,
           program_id,
           start_date,
@@ -97,7 +91,8 @@ export const useUserStats = () => {
             duration_weeks,
             days_per_week
           )
-        `)
+        `
+        )
         .eq("user_id", user.id)
         .order("start_date", { ascending: false })
         .limit(1)
@@ -129,9 +124,7 @@ export const useUserStats = () => {
       }
 
       // Convert to pounds if user logs in kg
-      const totalInPounds = userWeightUnit === "kg" 
-        ? totalWeightLiftedWeek * 2.20462 
-        : totalWeightLiftedWeek;
+      const totalInPounds = weightUnit === "kg" ? totalWeightLiftedWeek * 2.20462 : totalWeightLiftedWeek;
 
       return {
         totalWeightLiftedWeek: Math.round(totalInPounds),
@@ -141,6 +134,7 @@ export const useUserStats = () => {
         programName,
       };
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !weightUnitLoading,
   });
 };
+
