@@ -594,6 +594,44 @@ export type Database = {
           },
         ]
       }
+      workout_drafts: {
+        Row: {
+          exercise_data: Json
+          id: string
+          started_at: string | null
+          total_paused_ms: number | null
+          updated_at: string
+          user_id: string
+          user_workout_id: string
+        }
+        Insert: {
+          exercise_data?: Json
+          id?: string
+          started_at?: string | null
+          total_paused_ms?: number | null
+          updated_at?: string
+          user_id: string
+          user_workout_id: string
+        }
+        Update: {
+          exercise_data?: Json
+          id?: string
+          started_at?: string | null
+          total_paused_ms?: number | null
+          updated_at?: string
+          user_id?: string
+          user_workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_drafts_user_workout_id_fkey"
+            columns: ["user_workout_id"]
+            isOneToOne: false
+            referencedRelation: "user_workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workout_templates: {
         Row: {
           calories: string | null

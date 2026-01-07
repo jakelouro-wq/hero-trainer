@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Play, Pause, Dumbbell, PlusCircle } from "lucide-react";
+import { ArrowLeft, Clock, Play, Pause, Dumbbell, PlusCircle, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ExerciseGroupCard, { CompletedSetData } from "@/components/ExerciseGroupCard";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { useBadges, useCheckAndAwardBadges, useUserStats, Badge } from "@/hooks/
 import BadgeCelebration from "@/components/BadgeCelebration";
 import WorkoutCompletionDialog from "@/components/WorkoutCompletionDialog";
 import ShareDialog from "@/components/ShareDialog";
+import { useWorkoutDraft } from "@/hooks/useWorkoutDraft";
 
 interface Exercise {
   id: string;
@@ -82,22 +83,52 @@ const Workout = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionLoaded = useRef(false);
+  
+  // Database draft backup for data safety
+  const { queueSave: queueDraftSave, flushSave: flushDraftSave, loadDraft, deleteDraft } = useWorkoutDraft(id);
 
-  // Load session from localStorage on mount, or create empty one
+  // Load session from localStorage on mount, with database fallback for recovery
   useEffect(() => {
     if (!id || sessionLoaded.current) return;
     
-    const stored = localStorage.getItem(getSessionKey(id));
-    if (stored) {
-      try {
-        const parsed: SessionState = JSON.parse(stored);
-        setSessionState(parsed);
-        setCompletedExercises(new Set(parsed.completedExercises));
-        setExerciseWeights(parsed.exerciseWeights);
-        setSwappedExercises(parsed.swappedExercises || {});
-      } catch (e) {
-        console.error("Failed to parse session state:", e);
-        // Create fresh session on parse error
+    const initSession = async () => {
+      const stored = localStorage.getItem(getSessionKey(id));
+      if (stored) {
+        try {
+          const parsed: SessionState = JSON.parse(stored);
+          setSessionState(parsed);
+          setCompletedExercises(new Set(parsed.completedExercises));
+          setExerciseWeights(parsed.exerciseWeights);
+          setSwappedExercises(parsed.swappedExercises || {});
+          sessionLoaded.current = true;
+          return;
+        } catch (e) {
+          console.error("Failed to parse session state:", e);
+        }
+      }
+      
+      // Try to recover from database if localStorage is empty/corrupted
+      const dbDraft = await loadDraft();
+      if (dbDraft && (Object.keys(dbDraft.exerciseWeights).length > 0 || dbDraft.startedAt)) {
+        console.log("[Workout] Recovered session from database backup");
+        toast.info("Recovered your workout progress from backup!");
+        const recoveredSession: SessionState = {
+          startedAt: dbDraft.startedAt,
+          isPaused: false,
+          pausedAt: null,
+          totalPausedMs: dbDraft.totalPausedMs,
+          completedExercises: dbDraft.completedExercises,
+          exerciseWeights: dbDraft.exerciseWeights,
+          swappedExercises: dbDraft.swappedExercises,
+        };
+        setSessionState(recoveredSession);
+        setCompletedExercises(new Set(dbDraft.completedExercises));
+        setExerciseWeights(dbDraft.exerciseWeights);
+        setSwappedExercises(dbDraft.swappedExercises);
+        // Also save to localStorage
+        localStorage.setItem(getSessionKey(id), JSON.stringify(recoveredSession));
+      } else {
+        // No stored session - create an empty one
         const freshSession: SessionState = {
           startedAt: null,
           isPaused: false,
@@ -109,21 +140,11 @@ const Workout = () => {
         };
         setSessionState(freshSession);
       }
-    } else {
-      // No stored session - create an empty one so we can save data immediately
-      const freshSession: SessionState = {
-        startedAt: null,
-        isPaused: false,
-        pausedAt: null,
-        totalPausedMs: 0,
-        completedExercises: [],
-        exerciseWeights: {},
-        swappedExercises: {},
-      };
-      setSessionState(freshSession);
-    }
-    sessionLoaded.current = true;
-  }, [id]);
+      sessionLoaded.current = true;
+    };
+    
+    initSession();
+  }, [id, loadDraft]);
 
   // Save session to localStorage
   const saveSession = useCallback(
@@ -146,24 +167,41 @@ const Workout = () => {
     };
   }, [sessionState, completedExercises, exerciseWeights, swappedExercises]);
 
-  // Auto-save on EVERY change (including each input keystroke)
+  // Auto-save on EVERY change (including each input keystroke) - to localStorage AND database
   useEffect(() => {
     const snapshot = getSessionSnapshot();
     if (!snapshot) return;
+    
+    // Save to localStorage immediately
     saveSession(snapshot);
-  }, [getSessionSnapshot, saveSession]);
+    
+    // Also queue database backup (debounced)
+    queueDraftSave({
+      exerciseWeights: snapshot.exerciseWeights,
+      swappedExercises: snapshot.swappedExercises,
+      completedExercises: snapshot.completedExercises,
+      startedAt: snapshot.startedAt,
+      totalPausedMs: snapshot.totalPausedMs,
+    });
+  }, [getSessionSnapshot, saveSession, queueDraftSave]);
 
   // Force save when app is backgrounded or closed
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "hidden") return;
       const snapshot = getSessionSnapshot();
-      if (snapshot) saveSession(snapshot);
+      if (snapshot) {
+        saveSession(snapshot);
+        flushDraftSave(); // Immediately flush to database
+      }
     };
 
     const handleBeforeUnload = () => {
       const snapshot = getSessionSnapshot();
-      if (snapshot) saveSession(snapshot);
+      if (snapshot) {
+        saveSession(snapshot);
+        flushDraftSave(); // Immediately flush to database
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -175,7 +213,7 @@ const Workout = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("pagehide", handleBeforeUnload);
     };
-  }, [getSessionSnapshot, saveSession]);
+  }, [getSessionSnapshot, saveSession, flushDraftSave]);
 
   // Calculate elapsed time based on timestamps
   useEffect(() => {
@@ -882,8 +920,9 @@ const Workout = () => {
           if (error) {
             toast.error("Failed to save workout");
           } else {
-            // Clear session from localStorage
+            // Clear session from localStorage AND database
             localStorage.removeItem(getSessionKey(id));
+            await deleteDraft();
 
             // Reschedule remaining workouts to maintain weekday pattern
             try {
