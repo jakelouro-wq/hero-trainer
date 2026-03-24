@@ -18,7 +18,7 @@ const SAVE_DEBOUNCE_MS = 3000;
 export const useWorkoutDraft = (workoutId: string | undefined) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDataRef = useRef<DraftData | null>(null);
   const lastSavedRef = useRef<string>("");
 

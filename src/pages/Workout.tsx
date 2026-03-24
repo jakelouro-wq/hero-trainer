@@ -81,7 +81,7 @@ const Workout = () => {
   // Timer state - now based on timestamps for persistence
   const [sessionState, setSessionState] = useState<SessionState | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionLoaded = useRef(false);
   
   // Database draft backup for data safety
